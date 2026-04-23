@@ -28,11 +28,8 @@ def create_app(config_name: Optional[str] = None) -> Flask:
 
     @login_manager.user_loader
     def load_user(user_id: str):
-        from app import models
+        from app.models import User
 
-        User = getattr(models, "User", None)
-        if User is None:
-            return None
         return db.session.get(User, int(user_id))
 
     from app import models as _models  # noqa: F401

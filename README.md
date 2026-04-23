@@ -74,6 +74,7 @@ Then open `http://127.0.0.1:5000/` in a browser.
 
 - The database file is created at **`instance/app.db`**.
 - Tables are created on application startup for all registered models.
+- **`create_all()` does not add or rename columns** on tables that already exist. If you change models and SQLite reports errors such as `no such column`, stop the app and Flask shell, delete **`instance/app.db`**, then start again so the schema is recreated.
 
 ## Project layout
 
