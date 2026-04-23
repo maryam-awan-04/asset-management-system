@@ -1,0 +1,1 @@
+A web-based Asset Management System that enables users to track their assigned assets, while allowing administrators to manage and assign assets efficiently.
