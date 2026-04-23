@@ -32,10 +32,26 @@ Schema changes are applied with SQLAlchemy `create_all()` on startup. For local 
    pip install -r requirements.txt
    ```
 
+## Linting Git Hooks
+
+```bash
+pip install -r requirements-dev.txt
+```
+
+```bash
+pre-commit install
+```
+
+Run all hooks on the whole repo without committing:
+
+```bash
+pre-commit run --all-files
+```
+
 ## Configuration
 
-- `SECRET_KEY`: Flask session signing key. Set in production; defaults to a dev value in code if unset. |
-- `FLASK_CONFIG`: `development` (default) or `production`. Controls debug mode and stricter cookie settings in production. |
+- `SECRET_KEY`: Flask session signing key. Set in production; defaults to a dev value in code if unset.
+- `FLASK_CONFIG`: `development` (default) or `production`. Controls debug mode and stricter cookie settings in production.
 
 Optional: create a `.env` file in the project root (this file is ignored by git):
 

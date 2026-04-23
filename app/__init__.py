@@ -36,7 +36,6 @@ def create_app(config_name: Optional[str] = None) -> Flask:
         return db.session.get(User, int(user_id))
 
     from app import models as _models  # noqa: F401
-
     from app.routes import main as main_routes
 
     app.register_blueprint(main_routes.bp)
