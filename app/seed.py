@@ -59,7 +59,7 @@ DEMO_ASSET_SERIAL_PREFIX = "SN-DEMO-"
 
 def ensure_demo_assets() -> None:
     """
-    Insert sample assets for local UI testing (skipped if SN-DEMO-001 already exists).
+    Insert sample assets for local UI testing.
     """
     if db.session.scalar(
         select(Asset).filter_by(serial_number=f"{DEMO_ASSET_SERIAL_PREFIX}001"),

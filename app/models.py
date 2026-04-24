@@ -49,7 +49,9 @@ class Asset(db.Model):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(db.String(200), nullable=False)
     asset_type: Mapped[AssetType] = mapped_column(db.Enum(AssetType), nullable=False)
-    serial_number: Mapped[str] = mapped_column(db.String(128), nullable=False)
+    serial_number: Mapped[str] = mapped_column(
+        db.String(128), unique=True, nullable=False
+    )
     status: Mapped[Status] = mapped_column(db.Enum(Status), nullable=False)
     purchase_date: Mapped[date | None] = mapped_column(db.Date, nullable=True)
     expiry_date: Mapped[date | None] = mapped_column(db.Date, nullable=True)
@@ -58,8 +60,6 @@ class Asset(db.Model):
     assignments: Mapped[list["Assignment"]] = relationship(
         back_populates="asset", cascade="all, delete-orphan"
     )
-
-    __table_args__ = (Index("ix_assets_serial_number", "serial_number"),)
 
     def __repr__(self) -> str:
         return f"<Asset {self.name!r}>"

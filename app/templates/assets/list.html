@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}All assets · Asset Management{% endblock %}
+{% block title %}Assets · Asset Management{% endblock %}
 {% block body %}
   <div class="page-card page-card--wide">
     <div class="page-card-inner">
       <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
-        <h1 class="hero-title display-6 mb-0">All assets</h1>
-        <span class="dash-meta">Administrator view</span>
+        <h1 class="hero-title display-6 mb-0">Assets</h1>
+        <a class="btn btn-brand btn-lg" href="{{ url_for('assets.new_asset') }}">Add asset</a>
       </div>
 
       <form class="assets-filter mb-4" method="get" action="{{ url_for('assets.list_assets') }}">
@@ -63,6 +63,7 @@
                 <th scope="col">Purchase</th>
                 <th scope="col">Expiry</th>
                 <th scope="col">Notes</th>
+                <th scope="col" class="text-end">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -91,6 +92,15 @@
                     {% set note = a.notes or "" %}
                     {{ (note[:80] if note else "—") }}{% if note|length > 80 %}…{% endif %}
                   </td>
+                  <td class="text-end text-nowrap">
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-danger js-delete-asset"
+                      data-delete-url="{{ url_for('assets.delete_asset', asset_id=a.id) }}"
+                      data-asset-name="{{ a.name|e }}"
+                      data-asset-serial="{{ a.serial_number|e }}"
+                    >Delete</button>
+                  </td>
                 </tr>
               {% endfor %}
             </tbody>
@@ -107,4 +117,51 @@
       {% endif %}
     </div>
   </div>
+
+  <dialog id="delete-asset-dialog" class="app-dialog" aria-labelledby="delete-asset-dialog-title">
+    <div class="app-dialog__surface">
+      <h2 id="delete-asset-dialog-title" class="app-dialog__title">Delete asset</h2>
+      <p class="app-dialog__message" id="delete-asset-dialog-message"></p>
+      <form method="post" id="delete-asset-dialog-form" class="app-dialog__form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <div class="app-dialog__actions">
+          <button type="button" class="btn btn-outline-secondary" id="delete-asset-dialog-cancel">Cancel</button>
+          <button type="submit" class="btn btn-danger">Delete asset</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    (function () {
+      const dialog = document.getElementById("delete-asset-dialog");
+      const form = document.getElementById("delete-asset-dialog-form");
+      const messageEl = document.getElementById("delete-asset-dialog-message");
+      const cancelBtn = document.getElementById("delete-asset-dialog-cancel");
+      if (!dialog || !form || !messageEl || !cancelBtn) return;
+
+      cancelBtn.addEventListener("click", function () {
+        dialog.close();
+      });
+
+      dialog.addEventListener("click", function (e) {
+        if (e.target === dialog) dialog.close();
+      });
+
+      document.querySelectorAll(".js-delete-asset").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          const name = btn.getAttribute("data-asset-name") || "";
+          const serial = btn.getAttribute("data-asset-serial") || "";
+          const url = btn.getAttribute("data-delete-url");
+          if (!url) return;
+          form.setAttribute("action", url);
+          messageEl.textContent =
+            "Delete " + name + " (" + serial + ")? This cannot be undone.";
+          dialog.showModal();
+        });
+      });
+    })();
+  </script>
 {% endblock %}

@@ -1,0 +1,21 @@
+{% if messages %}
+  <div class="app-flash {{ flash_extra_class|default('mb-4') }}">
+    {% for category, message in messages %}
+      {% set tone = category if category in ('success', 'danger', 'warning', 'info') else 'info' %}
+      <div class="app-alert app-alert--{{ tone }}" role="alert">
+        <span class="app-alert__icon" aria-hidden="true">
+          {% if tone == 'success' %}
+            <i class="bi bi-check-circle-fill"></i>
+          {% elif tone == 'danger' %}
+            <i class="bi bi-exclamation-octagon-fill"></i>
+          {% elif tone == 'warning' %}
+            <i class="bi bi-exclamation-triangle-fill"></i>
+          {% else %}
+            <i class="bi bi-info-circle-fill"></i>
+          {% endif %}
+        </span>
+        <div class="app-alert__content">{{ message }}</div>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}

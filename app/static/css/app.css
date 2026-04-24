@@ -1,4 +1,5 @@
 @import url("brand.css");
+@import url("alerts.css");
 
 .app-shell {
   min-height: 100vh;
@@ -64,6 +65,15 @@
   font-weight: 700;
   color: var(--brand-white);
   margin: 0 0 1.25rem;
+  padding: 0 0.35rem;
+}
+
+.app-sidebar__welcome--with-role {
+  margin-bottom: 0.4rem;
+}
+
+.app-sidebar__admin-hint {
+  margin: 0 0 1rem;
   padding: 0 0.35rem;
 }
 
@@ -195,6 +205,12 @@
   color: var(--brand-primary);
 }
 
+.btn.btn-brand.btn-lg {
+  padding: 0.65rem 1.75rem;
+  font-size: 1.05rem;
+  border-radius: 0.45rem;
+}
+
 .btn.btn-brand-outline {
   background-color: transparent;
   border: 2px solid var(--brand-primary);
@@ -262,24 +278,51 @@
   font-weight: 600;
 }
 
-.app-flash .alert {
-  border-radius: 0.5rem;
+.app-dialog {
+  margin: auto;
+  padding: 0;
   border: none;
-  border-left: 4px solid var(--brand-secondary);
+  max-width: min(26rem, calc(100vw - 2rem));
+  background: transparent;
 }
 
-.app-flash .alert-success {
-  background-color: rgba(var(--brand-secondary-rgb), 0.15);
+.app-dialog::backdrop {
+  background: rgba(var(--brand-primary-rgb), 0.45);
+  backdrop-filter: blur(2px);
+}
+
+.app-dialog__surface {
+  background: var(--brand-white);
+  border-radius: 0.85rem;
+  padding: 1.5rem 1.65rem 1.4rem;
+  box-shadow: 0 0.5rem 2rem rgba(var(--brand-primary-rgb), 0.22);
+  border: 1px solid rgba(var(--brand-primary-rgb), 0.1);
+}
+
+.app-dialog__title {
+  font-size: 1.15rem;
+  font-weight: 700;
   color: var(--brand-primary);
+  margin: 0 0 0.65rem;
+  letter-spacing: -0.02em;
 }
 
-.app-flash .alert-danger {
-  border-left-color: #c0392b;
+.app-dialog__message {
+  margin: 0 0 1.25rem;
+  color: var(--brand-muted);
+  font-size: 0.95rem;
+  line-height: 1.5;
 }
 
-.app-flash .alert-info {
-  border-left-color: var(--brand-primary);
-  background-color: rgba(var(--brand-primary-rgb), 0.06);
+.app-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.app-dialog__form {
+  margin: 0;
 }
 
 @media (max-width: 767.98px) {

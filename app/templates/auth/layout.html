@@ -20,13 +20,8 @@
       </aside>
       <section class="auth-form-panel">
         {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            <div class="auth-flash mb-3">
-              {% for category, message in messages %}
-                <div class="alert alert-{{ category }}" role="alert">{{ message }}</div>
-              {% endfor %}
-            </div>
-          {% endif %}
+          {% set flash_extra_class = "mb-3" %}
+          {% include "_flash_messages.html" %}
         {% endwith %}
         {% block auth_content %}{% endblock %}
         {% if request.endpoint != "auth.login" %}

@@ -19,7 +19,14 @@
 
       {% if current_user.is_authenticated %}
         <hr class="app-sidebar__divider">
-        <p class="app-sidebar__welcome">Welcome {{ current_user.username }}!</p>
+        <p class="app-sidebar__welcome{% if current_user.role == Role.ADMIN %} app-sidebar__welcome--with-role{% endif %}">
+          Welcome {{ current_user.username }}!
+        </p>
+        {% if current_user.role == Role.ADMIN %}
+          <p class="app-sidebar__admin-hint">
+            <span class="dash-meta">Admin</span>
+          </p>
+        {% endif %}
         <nav class="app-sidebar__nav" aria-label="Main">
           <a
             class="app-sidebar__link {% if request.endpoint == 'main.dashboard' %}is-active{% endif %}"
@@ -27,9 +34,9 @@
           >Dashboard</a>
           {% if current_user.role == Role.ADMIN %}
             <a
-              class="app-sidebar__link {% if request.endpoint == 'assets.list_assets' %}is-active{% endif %}"
+              class="app-sidebar__link {% if request.endpoint in ('assets.list_assets', 'assets.new_asset') %}is-active{% endif %}"
               href="{{ url_for('assets.list_assets') }}"
-            >All assets</a>
+            >Assets</a>
           {% endif %}
         </nav>
         <div class="app-sidebar__footer">
@@ -56,17 +63,12 @@
     <div class="app-content">
       <main class="app-main">
         {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            <div class="app-flash mb-4">
-              {% for category, message in messages %}
-                <div class="alert alert-{{ category }}" role="alert">{{ message }}</div>
-              {% endfor %}
-            </div>
-          {% endif %}
+          {% include "_flash_messages.html" %}
         {% endwith %}
         {% block body %}{% endblock %}
       </main>
     </div>
   </div>
+  {% block scripts %}{% endblock %}
 </body>
 </html>
