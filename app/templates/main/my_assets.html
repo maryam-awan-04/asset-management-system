@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}My assets · Asset Management{% endblock %}
+{% block body %}
+  <div class="page-card page-card--wide">
+    <div class="page-card-inner">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+        <h1 class="hero-title display-6 mb-0">My assigned assets</h1>
+        <a class="btn btn-outline-secondary" href="{{ url_for('main.dashboard') }}">Dashboard</a>
+      </div>
+      <p class="text-muted mb-4">
+        Equipment currently checked out to you. When you physically return hardware to IT, submit a return here so your assignment record is closed.
+      </p>
+
+      {% if assignments %}
+        <div class="table-responsive">
+          <table class="table assets-table align-middle mb-0">
+            <thead>
+              <tr>
+                <th scope="col">Asset</th>
+                <th scope="col">Serial</th>
+                <th scope="col">Type</th>
+                <th scope="col">Assigned</th>
+                <th scope="col">Return Date</th>
+                <th scope="col">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in assignments %}
+                {% set a = row.asset %}
+                <tr>
+                  <td>{{ a.name }}</td>
+                  <td><span class="table-serial">{{ a.serial_number }}</span></td>
+                  <td>{{ a.asset_type.value }}</td>
+                  <td>{{ row.assigned_date.strftime("%Y-%m-%d") }}</td>
+                  <td>{{ row.return_due_date.strftime("%Y-%m-%d") if row.return_due_date else "—" }}</td>
+                  <td class="text-nowrap">
+                    <form
+                      method="post"
+                      action="{{ url_for('main.return_my_asset', asset_id=a.id) }}"
+                      class="d-inline"
+                      onsubmit="return confirm('Record that you returned this asset to IT?');"
+                    >
+                      {{ return_form.hidden_tag() }}
+                      <button type="submit" class="btn btn-sm btn-brand">I returned this</button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="text-muted mb-0">You have no assets currently checked out to you.</p>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

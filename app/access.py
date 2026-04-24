@@ -36,3 +36,8 @@ def roles_required(*roles: Role) -> Callable[[F], F]:
 def admin_required(view: F) -> F:
     """Shorthand for @roles_required(Role.ADMIN)."""
     return roles_required(Role.ADMIN)(view)
+
+
+def standard_user_required(view: F) -> F:
+    """Shorthand for @roles_required(Role.USER)."""
+    return roles_required(Role.USER)(view)

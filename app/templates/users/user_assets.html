@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Assets for {{ member.username }} · Asset Management{% endblock %}
+{% block body %}
+  <div class="page-card page-card--wide">
+    <div class="page-card-inner">
+      <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+        <div>
+          <h1 class="hero-title display-6 mb-1">Assigned assets</h1>
+          <p class="text-muted mb-0">
+            <strong>{{ member.username }}</strong>
+            <span class="mx-1">·</span>
+            {{ member.email }}
+            <span class="mx-1">·</span>
+            <span class="badge rounded-pill badge-dept badge-dept--{{ member.department.name|lower }}">{{ member.department.value }}</span>
+            <span class="mx-1">·</span>
+            user ID {{ member.id }}
+          </p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+          <a class="btn btn-outline-secondary" href="{{ url_for('users.list_users') }}">Back to users</a>
+          <a class="btn btn-outline-primary" href="{{ url_for('users.edit_user', user_id=member.id) }}">Edit user</a>
+        </div>
+      </div>
+
+      <section class="asset-detail-section mb-4" aria-labelledby="user-assets-current-heading">
+        <h2 id="user-assets-current-heading" class="asset-detail-section__title">Currently assigned</h2>
+        {% if current_assignments %}
+          <div class="table-responsive">
+            <table class="table assets-table align-middle mb-0">
+              <thead>
+                <tr>
+                  <th scope="col">Asset</th>
+                  <th scope="col">Serial</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Assigned</th>
+                  <th scope="col">Return Date</th>
+                  <th scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in current_assignments %}
+                  {% set a = row.asset %}
+                  <tr>
+                    <td>{{ a.name }}</td>
+                    <td><span class="table-serial">{{ a.serial_number }}</span></td>
+                    <td>{{ a.asset_type.value }}</td>
+                    <td>
+                      {% if a.status == Status.AVAILABLE %}
+                        <span class="badge rounded-pill bg-success">{{ a.status.value }}</span>
+                      {% elif a.status == Status.ASSIGNED %}
+                        <span class="badge rounded-pill bg-primary">{{ a.status.value }}</span>
+                      {% elif a.status == Status.UNDER_MAINTENANCE %}
+                        <span class="badge rounded-pill bg-warning text-dark">{{ a.status.value }}</span>
+                      {% elif a.status == Status.RETIRED %}
+                        <span class="badge rounded-pill bg-secondary">{{ a.status.value }}</span>
+                      {% else %}
+                        <span class="badge rounded-pill bg-secondary">{{ a.status.value }}</span>
+                      {% endif %}
+                    </td>
+                    <td>{{ row.assigned_date.strftime("%Y-%m-%d") }}</td>
+                    <td>{{ row.return_due_date.strftime("%Y-%m-%d") if row.return_due_date else "—" }}</td>
+                    <td class="text-nowrap">
+                      <a class="btn btn-sm btn-outline-primary" href="{{ url_for('assets.view_asset', asset_id=a.id) }}">View asset</a>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="text-muted mb-0">No active assignments for this user.</p>
+        {% endif %}
+      </section>
+
+      <section class="asset-detail-section" aria-labelledby="user-assets-past-heading">
+        <h2 id="user-assets-past-heading" class="asset-detail-section__title">Previously assigned</h2>
+        {% if past_assignments %}
+          <div class="table-responsive">
+            <table class="table assets-table align-middle mb-0">
+              <thead>
+                <tr>
+                  <th scope="col">Asset</th>
+                  <th scope="col">Serial</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Assigned</th>
+                  <th scope="col">Returned</th>
+                  <th scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in past_assignments %}
+                  {% set a = row.asset %}
+                  <tr>
+                    <td>{{ a.name }}</td>
+                    <td><span class="table-serial">{{ a.serial_number }}</span></td>
+                    <td>{{ a.asset_type.value }}</td>
+                    <td>
+                      {% if a.status == Status.AVAILABLE %}
+                        <span class="badge rounded-pill bg-success">{{ a.status.value }}</span>
+                      {% elif a.status == Status.ASSIGNED %}
+                        <span class="badge rounded-pill bg-primary">{{ a.status.value }}</span>
+                      {% elif a.status == Status.UNDER_MAINTENANCE %}
+                        <span class="badge rounded-pill bg-warning text-dark">{{ a.status.value }}</span>
+                      {% elif a.status == Status.RETIRED %}
+                        <span class="badge rounded-pill bg-secondary">{{ a.status.value }}</span>
+                      {% else %}
+                        <span class="badge rounded-pill bg-secondary">{{ a.status.value }}</span>
+                      {% endif %}
+                    </td>
+                    <td>{{ row.assigned_date.strftime("%Y-%m-%d") }}</td>
+                    <td>{{ row.returned_date.strftime("%Y-%m-%d") if row.returned_date else "—" }}</td>
+                    <td class="text-nowrap">
+                      <a class="btn btn-sm btn-outline-primary" href="{{ url_for('assets.view_asset', asset_id=a.id) }}">View asset</a>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="text-muted mb-0">No past assignments recorded.</p>
+        {% endif %}
+      </section>
+    </div>
+  </div>
+{% endblock %}

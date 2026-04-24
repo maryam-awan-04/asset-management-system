@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title %}Users · Asset Management{% endblock %}
+{% block body %}
+  <div class="page-card page-card--wide">
+    <div class="page-card-inner">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+        <h1 class="hero-title display-6 mb-0">Users</h1>
+      </div>
+
+      <form
+        id="users-filter-form"
+        class="assets-filter mb-4"
+        method="get"
+        action="{{ url_for('users.list_users') }}"
+      >
+        <div class="row g-3 align-items-end">
+          <div class="col-sm-6 col-md-4 col-lg-3">
+            <label class="form-label" for="filter-user-dept">Department</label>
+            <select
+              class="form-select"
+              id="filter-user-dept"
+              name="department"
+              onchange="this.form.submit()"
+            >
+              <option value="" {% if not filter_department %}selected{% endif %}>All departments</option>
+              {% for d in Department %}
+                <option value="{{ d.name }}" {% if filter_department == d.name %}selected{% endif %}>{{ d.value }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-sm-6 col-md-4 col-lg-3">
+            <label class="form-label" for="filter-user-role">Role</label>
+            <select
+              class="form-select"
+              id="filter-user-role"
+              name="role"
+              onchange="this.form.submit()"
+            >
+              <option value="" {% if not filter_role %}selected{% endif %}>All roles</option>
+              {% for r in Role %}
+                <option value="{{ r.name }}" {% if filter_role == r.name %}selected{% endif %}>{{ r.value }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-sm-6 col-md-4 col-lg-3">
+            <label class="form-label" for="filter-user-q">Search username</label>
+            <input
+              class="form-control"
+              type="search"
+              id="filter-user-q"
+              name="q"
+              value="{{ filter_q }}"
+              placeholder="Contains…"
+              autocomplete="off"
+            />
+          </div>
+          <div class="col-auto d-flex flex-wrap gap-2 align-items-end">
+            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('users.list_users') }}">Clear filters</a>
+          </div>
+        </div>
+      </form>
+
+      <div id="users-list-results">
+        {% include "users/_list_results.html" %}
+      </div>
+
+      <dialog id="delete-user-dialog" class="app-dialog" aria-labelledby="delete-user-dialog-title">
+        <div class="app-dialog__surface">
+          <h2 id="delete-user-dialog-title" class="app-dialog__title">Delete user</h2>
+          <p class="app-dialog__message" id="delete-user-dialog-message"></p>
+          <form method="post" id="delete-user-dialog-form" class="app-dialog__form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+            <div class="app-dialog__actions">
+              <button type="button" class="btn btn-outline-secondary" id="delete-user-dialog-cancel">Cancel</button>
+              <button type="submit" class="btn btn-danger">Delete user</button>
+            </div>
+          </form>
+        </div>
+      </dialog>
+    </div>
+  </div>
+{% endblock %}
+{% block scripts %}
+  <script>
+    (function () {
+      var fragmentUrl = {{ url_for('users.list_users_results')|tojson }};
+      var listPageUrl = {{ url_for('users.list_users')|tojson }};
+      var deptSelect = document.getElementById("filter-user-dept");
+      var roleSelect = document.getElementById("filter-user-role");
+      var qInput = document.getElementById("filter-user-q");
+      var resultsEl = document.getElementById("users-list-results");
+      if (!deptSelect || !roleSelect || !qInput || !resultsEl) return;
+
+      var searchTimer = null;
+      var searchAbort = null;
+
+      function syncUrl() {
+        var u = new URL(listPageUrl, window.location.origin);
+        var d = deptSelect.value;
+        var r = roleSelect.value;
+        var q = qInput.value.trim();
+        if (d) u.searchParams.set("department", d);
+        else u.searchParams.delete("department");
+        if (r) u.searchParams.set("role", r);
+        else u.searchParams.delete("role");
+        if (q) u.searchParams.set("q", q);
+        else u.searchParams.delete("q");
+        var next = u.pathname + u.search + u.hash;
+        if (next !== window.location.pathname + window.location.search + window.location.hash) {
+          history.replaceState(null, "", next);
+        }
+      }
+
+      function runSearch() {
+        if (searchAbort) searchAbort.abort();
+        searchAbort = new AbortController();
+        var params = new URLSearchParams();
+        var d = deptSelect.value;
+        var r = roleSelect.value;
+        var q = qInput.value.trim();
+        if (d) params.set("department", d);
+        if (r) params.set("role", r);
+        if (q) params.set("q", q);
+        var qs = params.toString();
+        var url = qs ? fragmentUrl + "?" + qs : fragmentUrl;
+        fetch(url, {
+          signal: searchAbort.signal,
+          credentials: "same-origin",
+          headers: { Accept: "text/html" },
+        })
+          .then(function (res) {
+            return res.text();
+          })
+          .then(function (html) {
+            resultsEl.innerHTML = html;
+            syncUrl();
+          })
+          .catch(function (err) {
+            if (err && err.name === "AbortError") return;
+          });
+      }
+
+      qInput.addEventListener("input", function () {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(runSearch, 250);
+      });
+    })();
+  </script>
+  <script>
+    (function () {
+      var dialog = document.getElementById("delete-user-dialog");
+      var form = document.getElementById("delete-user-dialog-form");
+      var messageEl = document.getElementById("delete-user-dialog-message");
+      var cancelBtn = document.getElementById("delete-user-dialog-cancel");
+      if (!dialog || !form || !messageEl || !cancelBtn) return;
+
+      cancelBtn.addEventListener("click", function () {
+        dialog.close();
+      });
+
+      dialog.addEventListener("click", function (e) {
+        if (e.target === dialog) dialog.close();
+      });
+
+      document.addEventListener("click", function (e) {
+        var btn = e.target.closest(".js-delete-user");
+        if (!btn) return;
+        var url = btn.getAttribute("data-delete-url");
+        var username = btn.getAttribute("data-username") || "";
+        var email = btn.getAttribute("data-user-email") || "";
+        if (!url) return;
+        form.setAttribute("action", url);
+        messageEl.textContent =
+          "Delete " + username + " (" + email + ")? This cannot be undone.";
+        dialog.showModal();
+      });
+    })();
+  </script>
+{% endblock %}

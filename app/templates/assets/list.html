@@ -102,13 +102,22 @@
                         class="btn btn-sm btn-outline-primary"
                         href="{{ url_for('assets.edit_asset', asset_id=a.id) }}"
                       >Edit</a>
-                      <button
-                        type="button"
-                        class="btn btn-sm btn-outline-danger js-delete-asset"
-                        data-delete-url="{{ url_for('assets.delete_asset', asset_id=a.id) }}"
-                        data-asset-name="{{ a.name|e }}"
-                        data-asset-serial="{{ a.serial_number|e }}"
-                      >Delete</button>
+                      {% if a.status != Status.ASSIGNED %}
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-danger js-delete-asset"
+                          data-delete-url="{{ url_for('assets.delete_asset', asset_id=a.id) }}"
+                          data-asset-name="{{ a.name|e }}"
+                          data-asset-serial="{{ a.serial_number|e }}"
+                        >Delete</button>
+                      {% else %}
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-secondary"
+                          disabled
+                          title="Cannot delete while status is Assigned. Return or change status first."
+                        >Delete</button>
+                      {% endif %}
                     </div>
                   </td>
                 </tr>

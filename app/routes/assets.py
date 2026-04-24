@@ -45,8 +45,8 @@ def _audit(user_id: int | None, action: AuditAction, details: str | None) -> Non
     db.session.add(AuditLog(user_id=user_id, action=action, details=details))
 
 
-def _active_assignment_user_id(asset: Asset) -> int | None:
-    row = db.session.scalar(
+def _active_open_assignment(asset: Asset) -> Assignment | None:
+    return db.session.scalar(
         select(Assignment)
         .where(
             Assignment.asset_id == asset.id,
@@ -55,6 +55,10 @@ def _active_assignment_user_id(asset: Asset) -> int | None:
         .order_by(Assignment.assigned_date.desc())
         .limit(1),
     )
+
+
+def _active_assignment_user_id(asset: Asset) -> int | None:
+    row = _active_open_assignment(asset)
     return row.user_id if row else None
 
 
@@ -295,11 +299,35 @@ def edit_asset(asset_id: int):
         }
         if active_uid is not None:
             data["assign_user_id"] = str(active_uid)
+        open_row = _active_open_assignment(asset)
+        if open_row is not None and open_row.return_due_date is not None:
+            data["assignment_return_due"] = open_row.return_due_date
         form = AssetEditForm(asset_id=asset.id, data=data)
     else:
         form = AssetEditForm(asset_id=asset.id, formdata=request.form)
 
     if form.validate_on_submit():
+        active_before = _active_assignment_user_id(asset)
+        assign_raw = (form.assign_user_id.data or "").strip()
+        assign_uid = int(assign_raw) if assign_raw.isdigit() else None
+
+        if form.status.data != Status.ASSIGNED and active_before is not None:
+            flash(
+                "This asset is assigned to a user. They must return it before the status can be changed.",
+                "danger",
+            )
+            return render_template(
+                "assets/edit.html",
+                form=form,
+                asset=asset,
+                assign_user_display=_assign_user_label(
+                    assign_uid if assign_raw.isdigit() else active_before,
+                ),
+                search_users_url=url_for("assets.search_assignable_users"),
+            )
+
+        due_back = form.assignment_return_due.data
+
         before = _snapshot_asset(asset)
         asset.name = form.name.data.strip()
         asset.serial_number = form.serial_number.data.strip()
@@ -330,28 +358,31 @@ def edit_asset(asset_id: int):
                 search_users_url=url_for("assets.search_assignable_users"),
             )
 
-        if form.status.data == Status.ASSIGNED:
-            assign_uid = int((form.assign_user_id.data or "").strip())
-            _close_open_assignments(asset, today)
-            db.session.add(
-                Assignment(
-                    asset_id=asset.id,
-                    user_id=assign_uid,
-                    assigned_date=today,
-                    return_due_date=None,
-                    returned_date=None,
-                ),
-            )
-            assignee = db.session.get(User, assign_uid)
-            assignee_name = assignee.username if assignee else "unknown user"
-            _audit(
-                current_user.id,
-                AuditAction.ASSET_ASSIGNED,
-                f"{asset.serial_number}: {asset.name} | assigned to "
-                f"{assignee_name} (user id {assign_uid})",
-            )
-        else:
-            _close_open_assignments(asset, today)
+        if form.status.data == Status.ASSIGNED and assign_uid is not None:
+            if assign_uid != active_before:
+                _close_open_assignments(asset, today)
+                db.session.add(
+                    Assignment(
+                        asset_id=asset.id,
+                        user_id=assign_uid,
+                        assigned_date=today,
+                        return_due_date=due_back,
+                        returned_date=None,
+                    ),
+                )
+                assignee = db.session.get(User, assign_uid)
+                assignee_name = assignee.username if assignee else "unknown user"
+                due_note = f"; return due {due_back.isoformat()}" if due_back else ""
+                _audit(
+                    current_user.id,
+                    AuditAction.ASSET_ASSIGNED,
+                    f"{asset.serial_number}: {asset.name} | assigned to "
+                    f"{assignee_name} (user id {assign_uid}){due_note}",
+                )
+            else:
+                open_row = _active_open_assignment(asset)
+                if open_row is not None and open_row.user_id == assign_uid:
+                    open_row.return_due_date = due_back
 
         _audit(
             current_user.id,
@@ -384,6 +415,14 @@ def delete_asset(asset_id: int):
     asset = db.session.get(Asset, asset_id)
     if asset is None:
         flash("That asset no longer exists.", "warning")
+        return redirect(url_for("assets.list_assets"))
+
+    if asset.status == Status.ASSIGNED:
+        flash(
+            "Cannot delete an asset while its status is Assigned. "
+            "Have the assignee return it from My assigned assets (or change status) first.",
+            "danger",
+        )
         return redirect(url_for("assets.list_assets"))
 
     label = f"{asset.name} ({asset.serial_number})"

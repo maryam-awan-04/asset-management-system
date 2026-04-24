@@ -39,6 +39,14 @@
           {% for err in form.assign_user_id.errors %}
             <div class="invalid-feedback d-block">{{ err }}</div>
           {% endfor %}
+          <div class="mt-3">
+            {{ form.assignment_return_due.label(class="form-label") }}
+            {{ form.assignment_return_due(class="form-control" + (" is-invalid" if form.assignment_return_due.errors else "")) }}
+            <p class="form-text text-muted small mb-0">Optional expected return date.</p>
+            {% for err in form.assignment_return_due.errors %}
+              <div class="invalid-feedback d-block">{{ err }}</div>
+            {% endfor %}
+          </div>
         </div>
 
         <div class="d-flex flex-wrap gap-2">

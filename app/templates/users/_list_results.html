@@ -1,0 +1,68 @@
+{% if filter_department or filter_role or filter_q %}
+  <p class="text-muted small mb-3">
+    Showing {{ users|length }} user{% if users|length != 1 %}s{% endif %}.
+  </p>
+{% endif %}
+
+{% if users %}
+  <div class="table-responsive">
+    <table class="table assets-table align-middle mb-0">
+      <thead>
+        <tr>
+          <th scope="col">ID</th>
+          <th scope="col">Username</th>
+          <th scope="col">Email</th>
+          <th scope="col">Department</th>
+          <th scope="col">Role</th>
+          <th scope="col">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+          <tr>
+            <td>{{ u.id }}</td>
+            <td>{{ u.username }}</td>
+            <td>{{ u.email }}</td>
+            <td>
+              <span class="badge rounded-pill badge-dept badge-dept--{{ u.department.name|lower }}">{{ u.department.value }}</span>
+            </td>
+            <td>
+              {% if u.role == Role.ADMIN %}
+                <span class="badge rounded-pill bg-dark">{{ u.role.value }}</span>
+              {% else %}
+                <span class="badge rounded-pill bg-secondary">{{ u.role.value }}</span>
+              {% endif %}
+            </td>
+            <td class="text-nowrap">
+              <div class="d-inline-flex flex-wrap gap-1 justify-content-start">
+                <a
+                  class="btn btn-sm btn-outline-primary"
+                  href="{{ url_for('users.edit_user', user_id=u.id) }}"
+                >Edit</a>
+                <a
+                  class="btn btn-sm btn-outline-secondary"
+                  href="{{ url_for('users.view_user_assets', user_id=u.id) }}"
+                >View assets</a>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-danger js-delete-user"
+                  data-delete-url="{{ url_for('users.delete_user', user_id=u.id) }}"
+                  data-username="{{ u.username|e }}"
+                  data-user-email="{{ u.email|e }}"
+                >Delete</button>
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <p class="text-muted mb-0">
+    {% if filter_department or filter_role or filter_q %}
+      No users match these filters.
+    {% else %}
+      No users in the database.
+    {% endif %}
+  </p>
+{% endif %}

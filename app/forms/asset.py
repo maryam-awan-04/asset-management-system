@@ -44,6 +44,10 @@ def _format_status(key: str | None) -> Status | None:
         raise ValidationError("Invalid status.") from exc
 
 
+def _status_choices_without_assigned() -> list[tuple[str, str]]:
+    return [(s.name, s.value) for s in Status if s != Status.ASSIGNED]
+
+
 class AssetCreateForm(FlaskForm):
     name = StringField(
         "Name",
@@ -99,8 +103,14 @@ class AssetCreateForm(FlaskForm):
         ]
         self.status.choices = [
             ("", "-- Select status --"),
-            *_status_choices(),
+            *_status_choices_without_assigned(),
         ]
+
+    def validate_status(self, field: Field) -> None:
+        if field.data == Status.ASSIGNED:
+            raise ValidationError(
+                "New assets cannot be created as Assigned. Create the asset first, then edit it to assign."
+            )
 
     def validate_serial_number(self, field: Field) -> None:
         sn = (field.data or "").strip()
@@ -117,11 +127,20 @@ class AssetCreateForm(FlaskForm):
 class AssetEditForm(AssetCreateForm):
     submit = SubmitField("Save changes")
     assign_user_id = HiddenField(validators=[Optional()])
+    assignment_return_due = DateField(
+        "Return date (optional)",
+        validators=[Optional()],
+        format="%Y-%m-%d",
+        render_kw={"type": "date"},
+    )
 
     def __init__(self, *args, asset_id: int, **kwargs):
         super().__init__(*args, exclude_asset_id=asset_id, **kwargs)
         self.asset_type.choices = _asset_type_choices()
         self.status.choices = _status_choices()
+
+    def validate_status(self, field: Field) -> None:
+        pass
 
     def validate(self, extra_validators=None):  # type: ignore[no-untyped-def]
         result = super().validate(extra_validators=extra_validators)

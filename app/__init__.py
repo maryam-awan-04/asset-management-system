@@ -38,18 +38,25 @@ def create_app(config_name: Optional[str] = None) -> Flask:
 
     @app.context_processor
     def inject_enums_for_templates():
-        from app.enums import AssetType, Role, Status
+        from app.enums import AssetType, Department, Role, Status
 
-        return {"AssetType": AssetType, "Role": Role, "Status": Status}
+        return {
+            "AssetType": AssetType,
+            "Department": Department,
+            "Role": Role,
+            "Status": Status,
+        }
 
     from app import models as _models  # noqa: F401
     from app.routes import assets as assets_routes
     from app.routes import auth as auth_routes
     from app.routes import main as main_routes
+    from app.routes import users as users_routes
 
     app.register_blueprint(auth_routes.bp)
     app.register_blueprint(main_routes.bp)
     app.register_blueprint(assets_routes.bp)
+    app.register_blueprint(users_routes.bp)
 
     with app.app_context():
         db.create_all()
