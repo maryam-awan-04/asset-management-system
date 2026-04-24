@@ -63,7 +63,7 @@
                 <th scope="col">Purchase</th>
                 <th scope="col">Expiry</th>
                 <th scope="col">Notes</th>
-                <th scope="col" class="text-end">Actions</th>
+                <th scope="col">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -92,8 +92,12 @@
                     {% set note = a.notes or "" %}
                     {{ (note[:80] if note else "—") }}{% if note|length > 80 %}…{% endif %}
                   </td>
-                  <td class="text-end text-nowrap">
-                    <div class="d-inline-flex flex-wrap gap-1 justify-content-end">
+                  <td class="text-nowrap">
+                    <div class="d-inline-flex flex-wrap gap-1 justify-content-start">
+                      <a
+                        class="btn btn-sm btn-outline-secondary"
+                        href="{{ url_for('assets.view_asset', asset_id=a.id) }}"
+                      >View history</a>
                       <a
                         class="btn btn-sm btn-outline-primary"
                         href="{{ url_for('assets.edit_asset', asset_id=a.id) }}"

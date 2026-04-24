@@ -293,6 +293,28 @@
   color: var(--brand-primary);
 }
 
+.asset-detail-section__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--brand-primary);
+  margin-bottom: 0.75rem;
+  letter-spacing: -0.01em;
+}
+
+.asset-detail-dl dt {
+  font-weight: 600;
+  color: var(--brand-muted);
+  font-size: 0.9rem;
+}
+
+.asset-detail-dl dd {
+  margin-bottom: 0.5rem;
+}
+
+.asset-detail-dl dd:last-child {
+  margin-bottom: 0;
+}
+
 .assets-filter {
   background: rgba(var(--brand-primary-rgb), 0.04);
   border: 1px solid rgba(var(--brand-primary-rgb), 0.12);

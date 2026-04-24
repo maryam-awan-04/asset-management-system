@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}{{ asset.name }} · Asset history{% endblock %}
+{% block body %}
+  <div class="page-card page-card--wide">
+    <div class="page-card-inner">
+      <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+        <div>
+          <h1 class="hero-title display-6 mb-1">{{ asset.name }}</h1>
+          <p class="text-muted mb-0">
+            <span class="table-serial">{{ asset.serial_number }}</span>
+            <span class="mx-1">·</span>
+            <span>ID {{ asset.id }}</span>
+          </p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+          <a class="btn btn-outline-secondary" href="{{ url_for('assets.list_assets') }}">Back to assets</a>
+          <a class="btn btn-brand" href="{{ url_for('assets.edit_asset', asset_id=asset.id) }}">Edit asset</a>
+        </div>
+      </div>
+
+      <section class="asset-detail-section mb-4" aria-labelledby="asset-fields-heading">
+        <h2 id="asset-fields-heading" class="asset-detail-section__title">Details</h2>
+        <dl class="row asset-detail-dl mb-0">
+          <dt class="col-sm-4 col-md-3">Type</dt>
+          <dd class="col-sm-8 col-md-9">{{ asset.asset_type.value }}</dd>
+          <dt class="col-sm-4 col-md-3">Status</dt>
+          <dd class="col-sm-8 col-md-9">
+            {% if asset.status == Status.AVAILABLE %}
+              <span class="badge rounded-pill bg-success">{{ asset.status.value }}</span>
+            {% elif asset.status == Status.ASSIGNED %}
+              <span class="badge rounded-pill bg-primary">{{ asset.status.value }}</span>
+            {% elif asset.status == Status.UNDER_MAINTENANCE %}
+              <span class="badge rounded-pill bg-warning text-dark">{{ asset.status.value }}</span>
+            {% elif asset.status == Status.RETIRED %}
+              <span class="badge rounded-pill bg-secondary">{{ asset.status.value }}</span>
+            {% else %}
+              <span class="badge rounded-pill bg-secondary">{{ asset.status.value }}</span>
+            {% endif %}
+          </dd>
+          <dt class="col-sm-4 col-md-3">Purchase</dt>
+          <dd class="col-sm-8 col-md-9">{{ asset.purchase_date.strftime("%Y-%m-%d") if asset.purchase_date else "—" }}</dd>
+          <dt class="col-sm-4 col-md-3">Expiry</dt>
+          <dd class="col-sm-8 col-md-9">{{ asset.expiry_date.strftime("%Y-%m-%d") if asset.expiry_date else "—" }}</dd>
+          <dt class="col-sm-4 col-md-3">Notes</dt>
+          <dd class="col-sm-8 col-md-9 text-muted">{{ asset.notes or "—" }}</dd>
+        </dl>
+      </section>
+
+      <section class="asset-detail-section mb-4" aria-labelledby="asset-assignments-heading">
+        <h2 id="asset-assignments-heading" class="asset-detail-section__title">Assignment history</h2>
+        {% if assignments %}
+          <div class="table-responsive">
+            <table class="table assets-table align-middle mb-0">
+              <thead>
+                <tr>
+                  <th scope="col">User</th>
+                  <th scope="col">Assigned</th>
+                  <th scope="col">Due back</th>
+                  <th scope="col">Returned</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in assignments %}
+                  <tr>
+                    <td>
+                      <span>{{ row.user.username }}</span>
+                      <span class="text-muted small d-block">{{ row.user.email }}</span>
+                    </td>
+                    <td>{{ row.assigned_date.strftime("%Y-%m-%d") }}</td>
+                    <td>{{ row.return_due_date.strftime("%Y-%m-%d") if row.return_due_date else "—" }}</td>
+                    <td>{{ row.returned_date.strftime("%Y-%m-%d") if row.returned_date else "—" }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="text-muted mb-0">No assignment records for this asset yet.</p>
+        {% endif %}
+      </section>
+
+      <section class="asset-detail-section" aria-labelledby="asset-audit-heading">
+        <h2 id="asset-audit-heading" class="asset-detail-section__title">Audit Logs</h2>
+        {% if audit_logs %}
+          <div class="table-responsive">
+            <table class="table assets-table align-middle mb-0">
+              <thead>
+                <tr>
+                  <th scope="col">When</th>
+                  <th scope="col">Action</th>
+                  <th scope="col">Who</th>
+                  <th scope="col">Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for log in audit_logs %}
+                  <tr>
+                    <td class="text-nowrap">{{ log.timestamp.strftime("%Y-%m-%d %H:%M") }}</td>
+                    <td>{{ log.action.value }}</td>
+                    <td>
+                      {% if log.user %}
+                        {{ log.user.username }}
+                      {% else %}
+                        <span class="text-muted">—</span>
+                      {% endif %}
+                    </td>
+                    <td class="text-muted small">{{ log.details or "—" }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="text-muted mb-0">No matching audit entries yet.</p>
+        {% endif %}
+      </section>
+    </div>
+  </div>
+{% endblock %}

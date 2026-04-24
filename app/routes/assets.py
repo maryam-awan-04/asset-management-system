@@ -17,6 +17,7 @@ from flask import (
 from flask_login import current_user
 from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import joinedload
 
 from app.access import admin_required
 from app.enums import AssetType, AuditAction, Status
@@ -74,6 +75,60 @@ def _assign_user_label(user_id: int | None) -> str:
     if user is None:
         return ""
     return f"{user.username} — {user.email} ({user.department.value})"
+
+
+def _snapshot_asset(asset: Asset) -> dict:
+    return {
+        "name": asset.name,
+        "serial_number": asset.serial_number,
+        "asset_type": asset.asset_type,
+        "status": asset.status,
+        "purchase_date": asset.purchase_date,
+        "expiry_date": asset.expiry_date,
+        "notes": asset.notes,
+    }
+
+
+def _norm_notes(val: str | None) -> str | None:
+    if val is None:
+        return None
+    s = str(val).strip()
+    return s or None
+
+
+def _display_audit_value(val: object, max_len: int = 72) -> str:
+    if val is None:
+        return "—"
+    if isinstance(val, Enum):
+        return str(val.value)
+    if isinstance(val, date):
+        return val.isoformat()
+    s = str(val).replace("\n", " ").strip()
+    if not s:
+        return "—"
+    return s if len(s) <= max_len else s[: max_len - 1] + "…"
+
+
+def _build_asset_update_audit_details(before: dict, asset: Asset) -> str:
+    sn = asset.serial_number
+    nm = asset.name
+    pairs: list[tuple[str, object, object]] = [
+        ("name", before["name"], asset.name),
+        ("serial", before["serial_number"], asset.serial_number),
+        ("type", before["asset_type"], asset.asset_type),
+        ("status", before["status"], asset.status),
+        ("purchase", before["purchase_date"], asset.purchase_date),
+        ("expiry", before["expiry_date"], asset.expiry_date),
+        ("notes", _norm_notes(before["notes"]), _norm_notes(asset.notes)),
+    ]
+    changes: list[str] = []
+    for label, old, new in pairs:
+        if old != new:
+            changes.append(
+                f"{label}: {_display_audit_value(old)}→{_display_audit_value(new)}",
+            )
+    inner = "; ".join(changes) if changes else "fields unchanged"
+    return f"{sn}: {nm} | {inner}"
 
 
 @bp.get("/assignable-users")
@@ -141,6 +196,45 @@ def list_assets():
     return resp
 
 
+@bp.get("/<int:asset_id>/view")
+@admin_required
+def view_asset(asset_id: int):
+    asset = db.session.get(Asset, asset_id)
+    if asset is None:
+        flash("That asset could not be found.", "warning")
+        return redirect(url_for("assets.list_assets"))
+
+    assignments = db.session.scalars(
+        select(Assignment)
+        .where(Assignment.asset_id == asset.id)
+        .options(joinedload(Assignment.user))
+        .order_by(Assignment.assigned_date.desc(), Assignment.id.desc()),
+    ).all()
+
+    serial = asset.serial_number
+    audit_stmt = (
+        select(AuditLog)
+        .where(
+            AuditLog.details.isnot(None),
+            AuditLog.details.contains(serial),
+        )
+        .options(joinedload(AuditLog.user))
+        .order_by(AuditLog.timestamp.desc())
+        .limit(50)
+    )
+    audit_logs = db.session.scalars(audit_stmt).unique().all()
+
+    html = render_template(
+        "assets/detail.html",
+        asset=asset,
+        assignments=assignments,
+        audit_logs=audit_logs,
+    )
+    resp = make_response(html)
+    resp.headers["Cache-Control"] = "private, no-store"
+    return resp
+
+
 @bp.route("/new", methods=["GET", "POST"])
 @admin_required
 def new_asset():
@@ -168,7 +262,8 @@ def new_asset():
         _audit(
             current_user.id,
             AuditAction.ASSET_CREATED,
-            f"{asset.serial_number}: {asset.name}",
+            f"{asset.serial_number}: {asset.name} | created as "
+            f"{asset.asset_type.value}; status {asset.status.value}",
         )
         db.session.commit()
         flash("Asset created.", "success")
@@ -205,6 +300,7 @@ def edit_asset(asset_id: int):
         form = AssetEditForm(asset_id=asset.id, formdata=request.form)
 
     if form.validate_on_submit():
+        before = _snapshot_asset(asset)
         asset.name = form.name.data.strip()
         asset.serial_number = form.serial_number.data.strip()
         asset.asset_type = form.asset_type.data
@@ -246,10 +342,13 @@ def edit_asset(asset_id: int):
                     returned_date=None,
                 ),
             )
+            assignee = db.session.get(User, assign_uid)
+            assignee_name = assignee.username if assignee else "unknown user"
             _audit(
                 current_user.id,
                 AuditAction.ASSET_ASSIGNED,
-                f"{asset.serial_number} → user id {assign_uid}",
+                f"{asset.serial_number}: {asset.name} | assigned to "
+                f"{assignee_name} (user id {assign_uid})",
             )
         else:
             _close_open_assignments(asset, today)
@@ -257,7 +356,7 @@ def edit_asset(asset_id: int):
         _audit(
             current_user.id,
             AuditAction.ASSET_UPDATED,
-            f"{asset.serial_number}: {asset.name}",
+            _build_asset_update_audit_details(before, asset),
         )
         db.session.commit()
         flash("Asset updated.", "success")

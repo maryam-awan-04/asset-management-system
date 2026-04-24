@@ -11,7 +11,10 @@
             · ID {{ asset.id }}
           </p>
         </div>
-        <a class="btn btn-outline-secondary" href="{{ url_for('assets.list_assets') }}">Back to all assets</a>
+        <div class="d-flex flex-wrap gap-2">
+          <a class="btn btn-outline-secondary" href="{{ url_for('assets.view_asset', asset_id=asset.id) }}">View history</a>
+          <a class="btn btn-outline-secondary" href="{{ url_for('assets.list_assets') }}">Back to all assets</a>
+        </div>
       </div>
 
       <form method="post" novalidate class="assets-form js-edit-asset-form" style="max-width: 40rem;">
