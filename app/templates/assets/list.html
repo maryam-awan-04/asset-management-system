@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}All assets · Asset Management{% endblock %}
+{% block body %}
+  <div class="page-card page-card--wide">
+    <div class="page-card-inner">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+        <h1 class="hero-title display-6 mb-0">All assets</h1>
+        <span class="dash-meta">Administrator view</span>
+      </div>
+
+      <form class="assets-filter mb-4" method="get" action="{{ url_for('assets.list_assets') }}">
+        <div class="row g-3 align-items-end">
+          <div class="col-sm-6 col-md-4 col-lg-3">
+            <label class="form-label" for="filter-asset-type">Asset type</label>
+            <select
+              class="form-select"
+              id="filter-asset-type"
+              name="asset_type"
+              onchange="this.form.submit()"
+            >
+              <option value="" {% if not filter_asset_type %}selected{% endif %}>All types</option>
+              {% for t in AssetType %}
+                <option value="{{ t.name }}" {% if filter_asset_type == t.name %}selected{% endif %}>{{ t.value }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-sm-6 col-md-4 col-lg-3">
+            <label class="form-label" for="filter-status">Status</label>
+            <select
+              class="form-select"
+              id="filter-status"
+              name="status"
+              onchange="this.form.submit()"
+            >
+              <option value="" {% if not filter_status %}selected{% endif %}>All statuses</option>
+              {% for s in Status %}
+                <option value="{{ s.name }}" {% if filter_status == s.name %}selected{% endif %}>{{ s.value }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-auto d-flex flex-wrap gap-2 align-items-end">
+            <a class="btn btn-outline-secondary" href="{{ url_for('assets.list_assets') }}">Clear filters</a>
+          </div>
+        </div>
+      </form>
+
+      {% if filter_asset_type or filter_status %}
+        <p class="text-muted small mb-3">
+          Showing {{ assets|length }} matching asset{% if assets|length != 1 %}s{% endif %}.
+        </p>
+      {% endif %}
+
+      {% if assets %}
+        <div class="table-responsive">
+          <table class="table assets-table align-middle mb-0">
+            <thead>
+              <tr>
+                <th scope="col">ID</th>
+                <th scope="col">Name</th>
+                <th scope="col">Type</th>
+                <th scope="col">Serial</th>
+                <th scope="col">Status</th>
+                <th scope="col">Purchase</th>
+                <th scope="col">Expiry</th>
+                <th scope="col">Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for a in assets %}
+                <tr>
+                  <td>{{ a.id }}</td>
+                  <td>{{ a.name }}</td>
+                  <td>{{ a.asset_type.value }}</td>
+                  <td><span class="table-serial">{{ a.serial_number }}</span></td>
+                  <td>
+                    {% if a.status == Status.AVAILABLE %}
+                      <span class="badge rounded-pill bg-success">{{ a.status.value }}</span>
+                    {% elif a.status == Status.ASSIGNED %}
+                      <span class="badge rounded-pill bg-primary">{{ a.status.value }}</span>
+                    {% elif a.status == Status.UNDER_MAINTENANCE %}
+                      <span class="badge rounded-pill bg-warning text-dark">{{ a.status.value }}</span>
+                    {% elif a.status == Status.RETIRED %}
+                      <span class="badge rounded-pill bg-secondary">{{ a.status.value }}</span>
+                    {% else %}
+                      <span class="badge rounded-pill bg-secondary">{{ a.status.value }}</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ a.purchase_date.strftime("%Y-%m-%d") if a.purchase_date else "—" }}</td>
+                  <td>{{ a.expiry_date.strftime("%Y-%m-%d") if a.expiry_date else "—" }}</td>
+                  <td class="text-muted small">
+                    {% set note = a.notes or "" %}
+                    {{ (note[:80] if note else "—") }}{% if note|length > 80 %}…{% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="text-muted mb-0">
+          {% if filter_asset_type or filter_status %}
+            No assets match these filters.
+          {% else %}
+            No assets in the database yet.
+          {% endif %}
+        </p>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

@@ -36,14 +36,27 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     def inject_logout_form():
         return {"logout_form": EmptyForm()}
 
+    @app.context_processor
+    def inject_enums_for_templates():
+        from app.enums import AssetType, Role, Status
+
+        return {"AssetType": AssetType, "Role": Role, "Status": Status}
+
     from app import models as _models  # noqa: F401
+    from app.routes import assets as assets_routes
     from app.routes import auth as auth_routes
     from app.routes import main as main_routes
 
     app.register_blueprint(auth_routes.bp)
     app.register_blueprint(main_routes.bp)
+    app.register_blueprint(assets_routes.bp)
 
     with app.app_context():
         db.create_all()
+        if app.config.get("DEBUG"):
+            from app.seed import ensure_demo_assets, ensure_localdev_admin
+
+            ensure_localdev_admin()
+            ensure_demo_assets()
 
     return app
