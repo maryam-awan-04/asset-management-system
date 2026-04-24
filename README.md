@@ -1,14 +1,15 @@
 # IT Asset Management System
 
-A web-based asset management app for tracking hardware and software assignments. Administrators will manage assets and assignments; standard users will see what is assigned to them. This repository is under active development; the current codebase is an early Flask scaffold (health routes and database wiring only).
+A web-based asset management app for tracking hardware and software assignments. Administrators will manage assets and assignments; standard users will see what is assigned to them.
 
 ## Stack
 
 - Python 3.10+
 - Flask
 - Flask-SQLAlchemy (SQLite)
-- Flask-Login
-- Flask-WTF
+- Flask-Login (sessions and protected routes)
+- Flask-WTF / WTForms (forms and CSRF)
+- bcrypt (password hashing)
 - python-dotenv
 
 Schema changes are applied with SQLAlchemy `create_all()` on startup. For local development, if you change models after tables already exist, delete `instance/app.db` and restart so tables are recreated.
@@ -83,9 +84,14 @@ app/
   __init__.py      # Application factory, extension wiring, db.create_all()
   config.py        # Development / production settings
   extensions.py    # db, login_manager, csrf
+  forms/           # WTForms (auth, CSRF helpers)
   models.py        # Database models
+  passwords.py     # bcrypt hash / verify helpers
   routes/
-    main.py        # `/` and `/health` blueprints
+    auth.py        # Login, register, logout
+    main.py        # Home, dashboard
+  static/css/
+  templates/       # Jinja2
 run.py             # Local dev entrypoint
 wsgi.py            # WSGI entry
 requirements.txt

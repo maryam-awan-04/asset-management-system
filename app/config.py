@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from datetime import timedelta
 from typing import Optional, Type
 
 
@@ -11,6 +12,8 @@ class Config:
     REMEMBER_COOKIE_HTTPONLY = True
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
+    PERMANENT_SESSION_LIFETIME = timedelta(days=14)
+    REMEMBER_COOKIE_DURATION = timedelta(days=14)
 
 
 class DevelopmentConfig(Config):

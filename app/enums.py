@@ -34,6 +34,8 @@ class Department(Enum):
 
 
 class AuditAction(Enum):
+    LOGIN_SUCCESS = "Login Success"
+    LOGIN_FAILED = "Login Failed"
     USER_CREATED = "User Created"
     USER_UPDATED = "User Updated"
     USER_DELETED = "User Deleted"

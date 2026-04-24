@@ -1,0 +1,21 @@
+html,
+body {
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+:root {
+  --brand-primary: #004f00;
+  --brand-primary-rgb: 0, 79, 0;
+  --brand-secondary: #8edf00;
+  --brand-secondary-rgb: 142, 223, 0;
+  --brand-yellow: #ffe600;
+  --brand-yellow-rgb: 255, 230, 0;
+
+  --brand-text: #1a1a1a;
+  --brand-muted: #5a5a5a;
+  --brand-surface: #f2f7f0;
+  --brand-white: #ffffff;
+
+  --brand-primary-dark: #003d00;
+  --brand-secondary-dim: #7acc00;
+}

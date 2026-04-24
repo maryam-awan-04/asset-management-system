@@ -1,0 +1,29 @@
+{% extends "auth/layout.html" %}
+{% block title %}Sign in · Asset Management{% endblock %}
+{% block auth_content %}
+  <h1 class="auth-form-heading">Sign in</h1>
+  <form method="post" novalidate class="flex-grow-1">
+    {{ form.hidden_tag() }}
+    <div class="mb-3">
+      {{ form.username.label(class="form-label") }}
+      {{ form.username(class="form-control" + (" is-invalid" if form.username.errors else "")) }}
+      {% for err in form.username.errors %}<div class="invalid-feedback d-block">{{ err }}</div>{% endfor %}
+    </div>
+    <div class="mb-3">
+      {{ form.password.label(class="form-label") }}
+      {{ form.password(class="form-control" + (" is-invalid" if form.password.errors else "")) }}
+      {% for err in form.password.errors %}<div class="invalid-feedback d-block">{{ err }}</div>{% endfor %}
+    </div>
+    <div class="mb-2 form-check">
+      {{ form.remember_me(class="form-check-input") }}
+      {{ form.remember_me.label(class="form-check-label") }}
+    </div>
+    <div class="auth-form-footer">
+      <p class="auth-switch">
+        Don&rsquo;t have an account?
+        <a href="{{ url_for('auth.register') }}">Register</a>
+      </p>
+      {{ form.submit(class="btn auth-btn-submit") }}
+    </div>
+  </form>
+{% endblock %}

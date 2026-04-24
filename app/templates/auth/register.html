@@ -1,0 +1,41 @@
+{% extends "auth/layout.html" %}
+{% block title %}Register · Asset Management{% endblock %}
+{% block auth_card_extra_class %} auth-register-panel{% endblock %}
+{% block auth_content %}
+  <h1 class="auth-form-heading">Create account</h1>
+  <form method="post" novalidate class="flex-grow-1">
+    {{ form.hidden_tag() }}
+    <div class="mb-3">
+      {{ form.username.label(class="form-label") }}
+      {{ form.username(class="form-control" + (" is-invalid" if form.username.errors else "")) }}
+      {% for err in form.username.errors %}<div class="invalid-feedback d-block">{{ err }}</div>{% endfor %}
+    </div>
+    <div class="mb-3">
+      {{ form.email.label(class="form-label") }}
+      {{ form.email(class="form-control" + (" is-invalid" if form.email.errors else "")) }}
+      {% for err in form.email.errors %}<div class="invalid-feedback d-block">{{ err }}</div>{% endfor %}
+    </div>
+    <div class="mb-3">
+      {{ form.department.label(class="form-label") }}
+      {{ form.department(class="form-select" + (" is-invalid" if form.department.errors else "")) }}
+      {% for err in form.department.errors %}<div class="invalid-feedback d-block">{{ err }}</div>{% endfor %}
+    </div>
+    <div class="mb-3">
+      {{ form.password.label(class="form-label") }}
+      {{ form.password(class="form-control" + (" is-invalid" if form.password.errors else "")) }}
+      {% for err in form.password.errors %}<div class="invalid-feedback d-block">{{ err }}</div>{% endfor %}
+    </div>
+    <div class="mb-3">
+      {{ form.confirm_password.label(class="form-label") }}
+      {{ form.confirm_password(class="form-control" + (" is-invalid" if form.confirm_password.errors else "")) }}
+      {% for err in form.confirm_password.errors %}<div class="invalid-feedback d-block">{{ err }}</div>{% endfor %}
+    </div>
+    <div class="auth-form-footer">
+      <p class="auth-switch">
+        Already have an account?
+        <a href="{{ url_for('auth.login') }}">Sign in</a>
+      </p>
+      {{ form.submit(class="btn auth-btn-submit") }}
+    </div>
+  </form>
+{% endblock %}

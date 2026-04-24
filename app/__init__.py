@@ -7,6 +7,7 @@ from flask import Flask
 
 from app.config import get_config
 from app.extensions import csrf, db, login_manager
+from app.forms.empty import EmptyForm
 
 
 def create_app(config_name: Optional[str] = None) -> Flask:
@@ -23,8 +24,7 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     login_manager.init_app(app)
     csrf.init_app(app)
 
-    # Set to a real login route when auth blueprint is registered
-    login_manager.login_view = None
+    login_manager.login_view = "auth.login"
 
     @login_manager.user_loader
     def load_user(user_id: str):
@@ -32,9 +32,15 @@ def create_app(config_name: Optional[str] = None) -> Flask:
 
         return db.session.get(User, int(user_id))
 
+    @app.context_processor
+    def inject_logout_form():
+        return {"logout_form": EmptyForm()}
+
     from app import models as _models  # noqa: F401
+    from app.routes import auth as auth_routes
     from app.routes import main as main_routes
 
+    app.register_blueprint(auth_routes.bp)
     app.register_blueprint(main_routes.bp)
 
     with app.app_context():

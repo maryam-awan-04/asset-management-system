@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · Asset Management{% endblock %}
+{% block body %}
+  <div class="page-card">
+    <div class="page-card-inner">
+      <h1 class="hero-title display-6 mb-3">Dashboard</h1>
+      <p class="mb-2">
+        You are signed in as <strong>{{ current_user.username }}</strong>
+        <span class="dash-meta ms-1">{{ current_user.role.value }}</span>
+        <span class="dash-meta ms-1">{{ current_user.department.value }}</span>
+      </p>
+      <p class="text-muted small mb-0">
+        Protected routes like this one require authentication.
+      </p>
+    </div>
+  </div>
+{% endblock %}
