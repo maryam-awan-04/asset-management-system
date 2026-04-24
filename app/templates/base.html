@@ -34,7 +34,7 @@
           >Dashboard</a>
           {% if current_user.role == Role.ADMIN %}
             <a
-              class="app-sidebar__link {% if request.endpoint in ('assets.list_assets', 'assets.new_asset') %}is-active{% endif %}"
+              class="app-sidebar__link {% if request.endpoint in ('assets.list_assets', 'assets.new_asset', 'assets.edit_asset') %}is-active{% endif %}"
               href="{{ url_for('assets.list_assets') }}"
             >Assets</a>
           {% endif %}

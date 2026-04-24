@@ -5,6 +5,7 @@ from sqlalchemy import select
 from wtforms import (
     DateField,
     Field,
+    HiddenField,
     SelectField,
     StringField,
     SubmitField,
@@ -14,7 +15,7 @@ from wtforms.validators import DataRequired, Length, Optional, ValidationError
 
 from app.enums import AssetType, Status
 from app.extensions import db
-from app.models import Asset
+from app.models import Asset, User
 
 
 def _asset_type_choices() -> list[tuple[str, str]]:
@@ -90,6 +91,7 @@ class AssetCreateForm(FlaskForm):
     submit = SubmitField("Create")
 
     def __init__(self, *args, **kwargs):
+        self._exclude_asset_id: int | None = kwargs.pop("exclude_asset_id", None)
         super().__init__(*args, **kwargs)
         self.asset_type.choices = [
             ("", "-- Select asset type --"),
@@ -104,8 +106,36 @@ class AssetCreateForm(FlaskForm):
         sn = (field.data or "").strip()
         if not sn:
             return
-        existing = db.session.scalar(
-            select(Asset.id).filter_by(serial_number=sn).limit(1),
-        )
+        stmt = select(Asset.id).where(Asset.serial_number == sn).limit(1)
+        if self._exclude_asset_id is not None:
+            stmt = stmt.where(Asset.id != self._exclude_asset_id)
+        existing = db.session.scalar(stmt)
         if existing is not None:
             raise ValidationError("An asset with this serial number already exists.")
+
+
+class AssetEditForm(AssetCreateForm):
+    submit = SubmitField("Save changes")
+    assign_user_id = HiddenField(validators=[Optional()])
+
+    def __init__(self, *args, asset_id: int, **kwargs):
+        super().__init__(*args, exclude_asset_id=asset_id, **kwargs)
+        self.asset_type.choices = _asset_type_choices()
+        self.status.choices = _status_choices()
+
+    def validate(self, extra_validators=None):  # type: ignore[no-untyped-def]
+        result = super().validate(extra_validators=extra_validators)
+        if self.status.data == Status.ASSIGNED:
+            raw = (self.assign_user_id.data or "").strip()
+            if not raw.isdigit():
+                self.assign_user_id.errors.append(
+                    "Search and select a user when status is Assigned.",
+                )
+                result = False
+            else:
+                uid = int(raw)
+                user = db.session.get(User, uid)
+                if user is None:
+                    self.assign_user_id.errors.append("Selected user was not found.")
+                    result = False
+        return result

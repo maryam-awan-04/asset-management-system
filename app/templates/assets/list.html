@@ -93,13 +93,19 @@
                     {{ (note[:80] if note else "—") }}{% if note|length > 80 %}…{% endif %}
                   </td>
                   <td class="text-end text-nowrap">
-                    <button
-                      type="button"
-                      class="btn btn-sm btn-outline-danger js-delete-asset"
-                      data-delete-url="{{ url_for('assets.delete_asset', asset_id=a.id) }}"
-                      data-asset-name="{{ a.name|e }}"
-                      data-asset-serial="{{ a.serial_number|e }}"
-                    >Delete</button>
+                    <div class="d-inline-flex flex-wrap gap-1 justify-content-end">
+                      <a
+                        class="btn btn-sm btn-outline-primary"
+                        href="{{ url_for('assets.edit_asset', asset_id=a.id) }}"
+                      >Edit</a>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-danger js-delete-asset"
+                        data-delete-url="{{ url_for('assets.delete_asset', asset_id=a.id) }}"
+                        data-asset-name="{{ a.name|e }}"
+                        data-asset-serial="{{ a.serial_number|e }}"
+                      >Delete</button>
+                    </div>
                   </td>
                 </tr>
               {% endfor %}

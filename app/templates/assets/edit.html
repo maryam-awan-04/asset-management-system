@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}Edit asset · Asset Management{% endblock %}
+{% block body %}
+  <div class="page-card page-card--wide">
+    <div class="page-card-inner">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+        <div>
+          <h1 class="hero-title display-6 mb-0">Edit Asset</h1>
+          <p class="text-muted small mb-0 mt-1">
+            <span class="table-serial">{{ asset.serial_number }}</span>
+            · ID {{ asset.id }}
+          </p>
+        </div>
+        <a class="btn btn-outline-secondary" href="{{ url_for('assets.list_assets') }}">Back to all assets</a>
+      </div>
+
+      <form method="post" novalidate class="assets-form js-edit-asset-form" style="max-width: 40rem;">
+        {{ form.hidden_tag() }}
+        {% include "assets/_form_fields.html" %}
+
+        <div id="assign-user-panel" class="assign-user-panel mb-4" hidden>
+          <label class="form-label" for="assign-user-search">Assign to user</label>
+          <p class="form-text text-muted small mb-2">
+            Required when status is <strong>Assigned</strong>. Search by username or email, then pick a user from the list.
+          </p>
+          <input
+            type="search"
+            class="form-control mb-2"
+            id="assign-user-search"
+            autocomplete="off"
+            placeholder="Search…"
+          />
+          <div id="assign-user-results" class="assign-user-results" role="listbox" hidden></div>
+          {{ form.assign_user_id(id="assign_user_id") }}
+          <div class="assign-user-selected mt-3" id="assign-user-selected" aria-live="polite">{% if assign_user_display %}<span class="assign-user-selected__label">Selected user</span><span class="assign-user-selected__value">{{ assign_user_display }}</span>{% endif %}</div>
+          {% for err in form.assign_user_id.errors %}
+            <div class="invalid-feedback d-block">{{ err }}</div>
+          {% endfor %}
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+          {{ form.submit(class="btn btn-brand") }}
+          <a class="btn btn-outline-secondary" href="{{ url_for('assets.list_assets') }}">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    (function () {
+      const STATUS_ASSIGNED = "ASSIGNED";
+      const searchUrl = {{ search_users_url|tojson }};
+      const statusEl = document.getElementById("status");
+      const panel = document.getElementById("assign-user-panel");
+      const searchInput = document.getElementById("assign-user-search");
+      const resultsEl = document.getElementById("assign-user-results");
+      const hiddenId = document.getElementById("assign_user_id");
+      const selectedEl = document.getElementById("assign-user-selected");
+      if (!statusEl || !panel || !searchInput || !resultsEl || !hiddenId || !selectedEl) return;
+
+      let searchTimer = null;
+
+      function setPanelVisible() {
+        const on = statusEl.value === STATUS_ASSIGNED;
+        panel.hidden = !on;
+        if (!on) {
+          hiddenId.value = "";
+          searchInput.value = "";
+          resultsEl.hidden = true;
+          resultsEl.innerHTML = "";
+          selectedEl.innerHTML = "";
+        }
+      }
+
+      function setSelectedLabel(username, email, dept) {
+        selectedEl.innerHTML = "";
+        const lab = document.createElement("span");
+        lab.className = "assign-user-selected__label";
+        lab.textContent = "Selected user";
+        const val = document.createElement("span");
+        val.className = "assign-user-selected__value";
+        val.textContent =
+          username + " — " + email + (dept ? " (" + dept + ")" : "");
+        selectedEl.appendChild(lab);
+        selectedEl.appendChild(val);
+      }
+
+      function renderResults(users) {
+        resultsEl.innerHTML = "";
+        if (!users.length) {
+          resultsEl.hidden = true;
+          return;
+        }
+        users.forEach(function (u) {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "assign-user-results__item";
+          btn.setAttribute("role", "option");
+          btn.textContent = u.username + " — " + u.email + " (" + u.department + ")";
+          btn.addEventListener("click", function () {
+            hiddenId.value = String(u.id);
+            setSelectedLabel(u.username, u.email, u.department);
+            resultsEl.hidden = true;
+            resultsEl.innerHTML = "";
+            searchInput.value = "";
+          });
+          resultsEl.appendChild(btn);
+        });
+        resultsEl.hidden = false;
+      }
+
+      function runSearch() {
+        const q = searchInput.value.trim();
+        if (q.length < 1) {
+          resultsEl.hidden = true;
+          resultsEl.innerHTML = "";
+          return;
+        }
+        const url = searchUrl + "?q=" + encodeURIComponent(q);
+        fetch(url, { headers: { Accept: "application/json" } })
+          .then(function (r) {
+            return r.json();
+          })
+          .then(renderResults)
+          .catch(function () {
+            resultsEl.hidden = true;
+            resultsEl.innerHTML = "";
+          });
+      }
+
+      statusEl.addEventListener("change", setPanelVisible);
+      searchInput.addEventListener("input", function () {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(runSearch, 250);
+      });
+
+      document.addEventListener("click", function (e) {
+        if (!panel.contains(e.target)) {
+          resultsEl.hidden = true;
+        }
+      });
+
+      setPanelVisible();
+    })();
+  </script>
+{% endblock %}

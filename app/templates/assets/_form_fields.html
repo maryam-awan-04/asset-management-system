@@ -1,0 +1,49 @@
+<div class="mb-3">
+  {{ form.name.label(class="form-label") }}
+  {{ form.name(class="form-control" + (" is-invalid" if form.name.errors else "")) }}
+  {% for err in form.name.errors %}<div class="invalid-feedback d-block">{{ err }}</div>{% endfor %}
+</div>
+<div class="mb-3">
+  {{ form.serial_number.label(class="form-label") }}
+  {{ form.serial_number(class="form-control" + (" is-invalid" if form.serial_number.errors else "")) }}
+  {% for err in form.serial_number.errors %}
+    <div class="invalid-feedback d-block">{{ err }}</div>
+  {% endfor %}
+</div>
+<div class="row g-3 mb-1">
+  <div class="col-md-6">
+    {{ form.asset_type.label(class="form-label") }}
+    {{ form.asset_type(class="form-select" + (" is-invalid" if form.asset_type.errors else "")) }}
+    {% for err in form.asset_type.errors %}
+      <div class="invalid-feedback d-block">{{ err }}</div>
+    {% endfor %}
+  </div>
+  <div class="col-md-6">
+    {{ form.status.label(class="form-label") }}
+    {{ form.status(class="form-select" + (" is-invalid" if form.status.errors else "")) }}
+    {% for err in form.status.errors %}
+      <div class="invalid-feedback d-block">{{ err }}</div>
+    {% endfor %}
+  </div>
+</div>
+<div class="row g-3 mb-3">
+  <div class="col-md-6">
+    {{ form.purchase_date.label(class="form-label") }}
+    {{ form.purchase_date(class="form-control" + (" is-invalid" if form.purchase_date.errors else "")) }}
+    {% for err in form.purchase_date.errors %}
+      <div class="invalid-feedback d-block">{{ err }}</div>
+    {% endfor %}
+  </div>
+  <div class="col-md-6">
+    {{ form.expiry_date.label(class="form-label") }}
+    {{ form.expiry_date(class="form-control" + (" is-invalid" if form.expiry_date.errors else "")) }}
+    {% for err in form.expiry_date.errors %}
+      <div class="invalid-feedback d-block">{{ err }}</div>
+    {% endfor %}
+  </div>
+</div>
+<div class="mb-4">
+  {{ form.notes.label(class="form-label") }}
+  {{ form.notes(class="form-control" + (" is-invalid" if form.notes.errors else "")) }}
+  {% for err in form.notes.errors %}<div class="invalid-feedback d-block">{{ err }}</div>{% endfor %}
+</div>
