@@ -25,6 +25,12 @@ class Status(Enum):
     RETIRED = "Retired"
 
 
+class RequestStatus(Enum):
+    PENDING = "Pending"
+    APPROVED = "Approved"
+    REJECTED = "Rejected"
+
+
 class Department(Enum):
     CP = "Customer and Products"
     STS = "Supply, Trading and Shipping"

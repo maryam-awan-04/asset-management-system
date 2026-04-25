@@ -8,7 +8,14 @@ from flask_login import UserMixin
 from sqlalchemy import Index, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.enums import AssetType, AuditAction, Department, Role, Status
+from app.enums import (
+    AssetType,
+    AuditAction,
+    Department,
+    RequestStatus,
+    Role,
+    Status,
+)
 from app.extensions import db
 
 
@@ -32,6 +39,15 @@ class User(UserMixin, db.Model):
     # One user can map to many assignments (delete assignments when user is deleted, keep audit logs)
     assignments: Mapped[list["Assignment"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
+    )
+    asset_requests: Mapped[list["AssetRequest"]] = relationship(
+        back_populates="requester",
+        foreign_keys="AssetRequest.user_id",
+        cascade="all, delete-orphan",
+    )
+    approved_asset_requests: Mapped[list["AssetRequest"]] = relationship(
+        back_populates="approver",
+        foreign_keys="AssetRequest.approved_by",
     )
     audit_logs: Mapped[list["AuditLog"]] = relationship(back_populates="user")
 
@@ -60,6 +76,10 @@ class Asset(db.Model):
     assignments: Mapped[list["Assignment"]] = relationship(
         back_populates="asset", cascade="all, delete-orphan"
     )
+    asset_requests: Mapped[list["AssetRequest"]] = relationship(
+        back_populates="asset",
+        cascade="all, delete-orphan",
+    )
 
     def __repr__(self) -> str:
         return f"<Asset {self.name!r}>"
@@ -87,6 +107,51 @@ class Assignment(db.Model):
 
     def __repr__(self) -> str:
         return f"<Assignment asset={self.asset_id} user={self.user_id}>"
+
+
+class AssetRequest(db.Model):
+    """User request for an asset and optional approval decision."""
+
+    __tablename__ = "asset_requests"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    asset_id: Mapped[int] = mapped_column(
+        db.ForeignKey("assets.id", ondelete="CASCADE"), nullable=False
+    )
+    status: Mapped[RequestStatus] = mapped_column(
+        db.Enum(RequestStatus),
+        nullable=False,
+        default=RequestStatus.PENDING,
+    )
+    request_date: Mapped[date] = mapped_column(
+        db.Date, nullable=False, default=date.today
+    )
+    decision_date: Mapped[date | None] = mapped_column(db.Date, nullable=True)
+    approved_by: Mapped[int | None] = mapped_column(
+        db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    requester: Mapped["User"] = relationship(
+        back_populates="asset_requests",
+        foreign_keys=[user_id],
+    )
+    asset: Mapped["Asset"] = relationship(back_populates="asset_requests")
+    approver: Mapped["User | None"] = relationship(
+        back_populates="approved_asset_requests",
+        foreign_keys=[approved_by],
+    )
+
+    __table_args__ = (
+        Index("ix_asset_requests_user_id", "user_id"),
+        Index("ix_asset_requests_asset_id", "asset_id"),
+        Index("ix_asset_requests_approved_by", "approved_by"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<AssetRequest id={self.id} status={self.status.value!r}>"
 
 
 class AuditLog(db.Model):

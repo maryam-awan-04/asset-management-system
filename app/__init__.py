@@ -38,11 +38,12 @@ def create_app(config_name: Optional[str] = None) -> Flask:
 
     @app.context_processor
     def inject_enums_for_templates():
-        from app.enums import AssetType, Department, Role, Status
+        from app.enums import AssetType, Department, RequestStatus, Role, Status
 
         return {
             "AssetType": AssetType,
             "Department": Department,
+            "RequestStatus": RequestStatus,
             "Role": Role,
             "Status": Status,
         }
