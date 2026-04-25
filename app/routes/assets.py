@@ -311,9 +311,13 @@ def edit_asset(asset_id: int):
         assign_raw = (form.assign_user_id.data or "").strip()
         assign_uid = int(assign_raw) if assign_raw.isdigit() else None
 
-        if form.status.data != Status.ASSIGNED and active_before is not None:
+        if (
+            form.status.data not in (Status.ASSIGNED, Status.RETURNED)
+            and active_before is not None
+        ):
             flash(
-                "This asset is assigned to a user. They must return it before the status can be changed.",
+                "This asset is assigned to a user. They must return it before the status can be changed, "
+                "or set status to Returned and enter the return date to close the checkout.",
                 "danger",
             )
             return render_template(
@@ -358,6 +362,9 @@ def edit_asset(asset_id: int):
                 search_users_url=url_for("assets.search_assignable_users"),
             )
 
+        if form.status.data == Status.RETURNED:
+            _close_open_assignments(asset, form.returned_on.data)
+
         if form.status.data == Status.ASSIGNED and assign_uid is not None:
             if assign_uid != active_before:
                 _close_open_assignments(asset, today)
@@ -372,7 +379,7 @@ def edit_asset(asset_id: int):
                 )
                 assignee = db.session.get(User, assign_uid)
                 assignee_name = assignee.username if assignee else "unknown user"
-                due_note = f"; return due {due_back.isoformat()}" if due_back else ""
+                due_note = f"; return date {due_back.isoformat()}" if due_back else ""
                 _audit(
                     current_user.id,
                     AuditAction.ASSET_ASSIGNED,
@@ -390,7 +397,7 @@ def edit_asset(asset_id: int):
             _build_asset_update_audit_details(before, asset),
         )
         db.session.commit()
-        flash("Asset updated.", "success")
+        flash(f"Asset updated. ID: {asset.id}.", "success")
         return redirect(url_for("assets.list_assets"))
 
     raw_uid = (form.assign_user_id.data or "").strip()
@@ -419,8 +426,7 @@ def delete_asset(asset_id: int):
 
     if asset.status == Status.ASSIGNED:
         flash(
-            "Cannot delete an asset while its status is Assigned. "
-            "Have the assignee return it from My assigned assets (or change status) first.",
+            "Cannot delete an asset while it is assigned to a user.",
             "danger",
         )
         return redirect(url_for("assets.list_assets"))

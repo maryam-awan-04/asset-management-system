@@ -78,6 +78,8 @@
                       <span class="badge rounded-pill bg-success">{{ a.status.value }}</span>
                     {% elif a.status == Status.ASSIGNED %}
                       <span class="badge rounded-pill bg-primary">{{ a.status.value }}</span>
+                    {% elif a.status == Status.RETURNED %}
+                      <span class="badge rounded-pill bg-info text-dark">{{ a.status.value }}</span>
                     {% elif a.status == Status.UNDER_MAINTENANCE %}
                       <span class="badge rounded-pill bg-warning text-dark">{{ a.status.value }}</span>
                     {% elif a.status == Status.RETIRED %}

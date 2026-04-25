@@ -109,6 +109,30 @@
 .app-sidebar__footer {
   margin-top: auto;
   padding-top: 1.5rem;
+  flex-shrink: 0;
+}
+
+/* Wide screens: sidebar matches viewport height and stays visible while main scrolls. */
+@media (min-width: 768px) {
+  .app-layout {
+    align-items: flex-start;
+  }
+
+  .app-sidebar {
+    position: sticky;
+    top: 0;
+    min-height: 100vh;
+    max-height: 100vh;
+    max-height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: hidden;
+  }
+
+  .app-sidebar__nav {
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 .btn-app-signout {

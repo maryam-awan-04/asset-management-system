@@ -42,11 +42,21 @@
           <div class="mt-3">
             {{ form.assignment_return_due.label(class="form-label") }}
             {{ form.assignment_return_due(class="form-control" + (" is-invalid" if form.assignment_return_due.errors else "")) }}
-            <p class="form-text text-muted small mb-0">Optional expected return date.</p>
             {% for err in form.assignment_return_due.errors %}
               <div class="invalid-feedback d-block">{{ err }}</div>
             {% endfor %}
           </div>
+        </div>
+
+        <div id="return-date-panel" class="mb-4" hidden>
+          {{ form.returned_on.label(class="form-label") }}
+          <p class="form-text text-muted small mb-2">
+            Required when status is <strong>Returned</strong>.
+          </p>
+          {{ form.returned_on(class="form-control" + (" is-invalid" if form.returned_on.errors else ""), id="returned_on") }}
+          {% for err in form.returned_on.errors %}
+            <div class="invalid-feedback d-block">{{ err }}</div>
+          {% endfor %}
         </div>
 
         <div class="d-flex flex-wrap gap-2">
@@ -62,26 +72,34 @@
   <script>
     (function () {
       const STATUS_ASSIGNED = "ASSIGNED";
+      const STATUS_RETURNED = "RETURNED";
       const searchUrl = {{ search_users_url|tojson }};
       const statusEl = document.getElementById("status");
       const panel = document.getElementById("assign-user-panel");
+      const returnPanel = document.getElementById("return-date-panel");
+      const returnedOn = document.getElementById("returned_on");
       const searchInput = document.getElementById("assign-user-search");
       const resultsEl = document.getElementById("assign-user-results");
       const hiddenId = document.getElementById("assign_user_id");
       const selectedEl = document.getElementById("assign-user-selected");
-      if (!statusEl || !panel || !searchInput || !resultsEl || !hiddenId || !selectedEl) return;
+      if (!statusEl || !panel || !returnPanel || !searchInput || !resultsEl || !hiddenId || !selectedEl) return;
 
       let searchTimer = null;
 
       function setPanelVisible() {
-        const on = statusEl.value === STATUS_ASSIGNED;
-        panel.hidden = !on;
-        if (!on) {
+        const assigned = statusEl.value === STATUS_ASSIGNED;
+        const returned = statusEl.value === STATUS_RETURNED;
+        panel.hidden = !assigned;
+        returnPanel.hidden = !returned;
+        if (!assigned) {
           hiddenId.value = "";
           searchInput.value = "";
           resultsEl.hidden = true;
           resultsEl.innerHTML = "";
           selectedEl.innerHTML = "";
+        }
+        if (!returned && returnedOn) {
+          returnedOn.value = "";
         }
       }
 

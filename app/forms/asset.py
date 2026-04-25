@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from flask_wtf import FlaskForm
-from sqlalchemy import select
+from sqlalchemy import func, select
 from wtforms import (
     DateField,
     Field,
@@ -15,7 +15,7 @@ from wtforms.validators import DataRequired, Length, Optional, ValidationError
 
 from app.enums import AssetType, Status
 from app.extensions import db
-from app.models import Asset, User
+from app.models import Asset, Assignment, User
 
 
 def _asset_type_choices() -> list[tuple[str, str]]:
@@ -44,8 +44,10 @@ def _format_status(key: str | None) -> Status | None:
         raise ValidationError("Invalid status.") from exc
 
 
-def _status_choices_without_assigned() -> list[tuple[str, str]]:
-    return [(s.name, s.value) for s in Status if s != Status.ASSIGNED]
+def _status_choices_for_create() -> list[tuple[str, str]]:
+    """Statuses that can be chosen when creating a new asset (not Assigned/Returned)."""
+    skip = {Status.ASSIGNED, Status.RETURNED}
+    return [(s.name, s.value) for s in Status if s not in skip]
 
 
 class AssetCreateForm(FlaskForm):
@@ -103,13 +105,17 @@ class AssetCreateForm(FlaskForm):
         ]
         self.status.choices = [
             ("", "-- Select status --"),
-            *_status_choices_without_assigned(),
+            *_status_choices_for_create(),
         ]
 
     def validate_status(self, field: Field) -> None:
         if field.data == Status.ASSIGNED:
             raise ValidationError(
-                "New assets cannot be created as Assigned. Create the asset first, then edit it to assign."
+                "New assets cannot be created as Assigned. Create the asset first, then edit it to assign.",
+            )
+        if field.data == Status.RETURNED:
+            raise ValidationError(
+                "New assets cannot be created as Returned.",
             )
 
     def validate_serial_number(self, field: Field) -> None:
@@ -133,8 +139,15 @@ class AssetEditForm(AssetCreateForm):
         format="%Y-%m-%d",
         render_kw={"type": "date"},
     )
+    returned_on = DateField(
+        "Return date",
+        validators=[Optional()],
+        format="%Y-%m-%d",
+        render_kw={"type": "date"},
+    )
 
     def __init__(self, *args, asset_id: int, **kwargs):
+        self._asset_id = asset_id
         super().__init__(*args, exclude_asset_id=asset_id, **kwargs)
         self.asset_type.choices = _asset_type_choices()
         self.status.choices = _status_choices()
@@ -144,6 +157,27 @@ class AssetEditForm(AssetCreateForm):
 
     def validate(self, extra_validators=None):  # type: ignore[no-untyped-def]
         result = super().validate(extra_validators=extra_validators)
+        if self.status.data == Status.RETURNED:
+            if self.returned_on.data is None:
+                self.returned_on.errors.append(
+                    "Return date is required.",
+                )
+                result = False
+            else:
+                open_n = (
+                    db.session.scalar(
+                        select(func.count(Assignment.id)).where(
+                            Assignment.asset_id == self._asset_id,
+                            Assignment.returned_date.is_(None),
+                        ),
+                    )
+                    or 0
+                )
+                if open_n == 0:
+                    self.status.errors.append(
+                        "Returned status requires an active assignment. "
+                    )
+                    result = False
         if self.status.data == Status.ASSIGNED:
             raw = (self.assign_user_id.data or "").strip()
             if not raw.isdigit():

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Asset history · Asset Management{% endblock %}
+{% block body %}
+  <div class="page-card page-card--wide">
+    <div class="page-card-inner">
+      <div class="mb-4">
+        <h1 class="hero-title display-6 mb-2">Asset History</h1>
+        <p class="text-muted mb-2">
+          This is a record of all assets that have been assigned to you.
+        </p>
+      </div>
+
+      {% if assignments %}
+        <div class="table-responsive">
+          <table class="table assets-table align-middle mb-0">
+            <thead>
+              <tr>
+                <th scope="col">Asset</th>
+                <th scope="col">Serial</th>
+                <th scope="col">Type</th>
+                <th scope="col">Assigned</th>
+                <th scope="col">Returned</th>
+                <th scope="col" title="Active = you still have this checkout open; Returned = this checkout period is closed.">Checkout</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in assignments %}
+                {% set a = row.asset %}
+                <tr>
+                  <td>{{ a.name }}</td>
+                  <td><span class="table-serial">{{ a.serial_number }}</span></td>
+                  <td>{{ a.asset_type.value }}</td>
+                  <td>{{ row.assigned_date.strftime("%Y-%m-%d") }}</td>
+                  <td>{% if row.returned_date %}{{ row.returned_date.strftime("%Y-%m-%d") }}{% endif %}</td>
+                  <td>
+                    {% if row.returned_date is none %}
+                      <span class="badge rounded-pill bg-primary">Active</span>
+                    {% else %}
+                      <span class="badge rounded-pill bg-secondary">Returned</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="text-muted mb-0">No assignment history for your account yet.</p>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

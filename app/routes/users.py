@@ -227,7 +227,7 @@ def edit_user(user_id: int):
             _build_user_update_audit_details(before, member),
         )
         db.session.commit()
-        flash("User updated.", "success")
+        flash(f"User updated. ID: {member.id}.", "success")
         return redirect(url_for("users.list_users"))
 
     return render_template("users/edit.html", form=form, member=member)

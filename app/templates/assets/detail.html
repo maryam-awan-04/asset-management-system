@@ -29,6 +29,8 @@
               <span class="badge rounded-pill bg-success">{{ asset.status.value }}</span>
             {% elif asset.status == Status.ASSIGNED %}
               <span class="badge rounded-pill bg-primary">{{ asset.status.value }}</span>
+            {% elif asset.status == Status.RETURNED %}
+              <span class="badge rounded-pill bg-info text-dark">{{ asset.status.value }}</span>
             {% elif asset.status == Status.UNDER_MAINTENANCE %}
               <span class="badge rounded-pill bg-warning text-dark">{{ asset.status.value }}</span>
             {% elif asset.status == Status.RETIRED %}

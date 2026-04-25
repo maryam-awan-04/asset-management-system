@@ -25,6 +25,8 @@ def roles_required(*roles: Role) -> Callable[[F], F]:
         def wrapped_view(*args, **kwargs):
             if current_user.role not in roles:
                 flash("You do not have permission to access this page.", "danger")
+                if current_user.role == Role.USER:
+                    return redirect(url_for("main.my_assets"))
                 return redirect(url_for("main.dashboard"))
             return view(*args, **kwargs)
 

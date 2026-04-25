@@ -10,6 +10,13 @@ from app.forms.auth import LoginForm, RegistrationForm
 from app.models import AuditLog, User
 from app.passwords import hash_password, passwords_match
 
+
+def _home_url_for_role(role: Role) -> str:
+    if role == Role.USER:
+        return url_for("main.my_assets")
+    return url_for("main.dashboard")
+
+
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 
@@ -24,7 +31,7 @@ def _audit(
 @bp.route("/login", methods=["GET", "POST"])
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for("main.dashboard"))
+        return redirect(_home_url_for_role(current_user.role))
 
     form = LoginForm()
     if form.validate_on_submit():
@@ -49,7 +56,7 @@ def login():
         next_url = request.args.get("next")
         if next_url and next_url.startswith("/"):
             return redirect(next_url)
-        return redirect(url_for("main.dashboard"))
+        return redirect(_home_url_for_role(user.role))
 
     return render_template("auth/login.html", form=form)
 
@@ -57,7 +64,7 @@ def login():
 @bp.route("/register", methods=["GET", "POST"])
 def register():
     if current_user.is_authenticated:
-        return redirect(url_for("main.dashboard"))
+        return redirect(_home_url_for_role(current_user.role))
 
     form = RegistrationForm()
     if form.validate_on_submit():

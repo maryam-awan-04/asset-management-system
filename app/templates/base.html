@@ -28,17 +28,11 @@
           </p>
         {% endif %}
         <nav class="app-sidebar__nav" aria-label="Main">
-          <a
-            class="app-sidebar__link {% if request.endpoint == 'main.dashboard' %}is-active{% endif %}"
-            href="{{ url_for('main.dashboard') }}"
-          >Dashboard</a>
-          {% if current_user.role == Role.USER %}
-            <a
-              class="app-sidebar__link {% if request.endpoint in ('main.my_assets', 'main.return_my_asset') %}is-active{% endif %}"
-              href="{{ url_for('main.my_assets') }}"
-            >My assets</a>
-          {% endif %}
           {% if current_user.role == Role.ADMIN %}
+            <a
+              class="app-sidebar__link {% if request.endpoint == 'main.dashboard' %}is-active{% endif %}"
+              href="{{ url_for('main.dashboard') }}"
+            >Dashboard</a>
             <a
               class="app-sidebar__link {% if request.endpoint in ('assets.list_assets', 'assets.new_asset', 'assets.edit_asset', 'assets.view_asset') %}is-active{% endif %}"
               href="{{ url_for('assets.list_assets') }}"
@@ -47,6 +41,15 @@
               class="app-sidebar__link {% if request.endpoint in ('users.list_users', 'users.edit_user', 'users.view_user_assets') %}is-active{% endif %}"
               href="{{ url_for('users.list_users') }}"
             >Users</a>
+          {% else %}
+            <a
+              class="app-sidebar__link {% if request.endpoint in ('main.my_assets', 'main.return_my_asset') %}is-active{% endif %}"
+              href="{{ url_for('main.my_assets') }}"
+            >My Assets</a>
+            <a
+              class="app-sidebar__link {% if request.endpoint == 'main.asset_history' %}is-active{% endif %}"
+              href="{{ url_for('main.asset_history') }}"
+            >Asset History</a>
           {% endif %}
         </nav>
         <div class="app-sidebar__footer">

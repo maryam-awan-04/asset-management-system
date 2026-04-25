@@ -20,6 +20,7 @@ class AssetType(Enum):
 class Status(Enum):
     AVAILABLE = "Available"
     ASSIGNED = "Assigned"
+    RETURNED = "Returned"
     UNDER_MAINTENANCE = "Under Maintenance"
     RETIRED = "Retired"
 

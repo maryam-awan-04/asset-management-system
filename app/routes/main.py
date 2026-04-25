@@ -2,7 +2,7 @@ from datetime import date
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
 from app.access import standard_user_required
@@ -23,21 +23,9 @@ def index():
 @bp.get("/dashboard")
 @login_required
 def dashboard():
-    active_count = 0
     if current_user.role != Role.ADMIN:
-        active_count = (
-            db.session.scalar(
-                select(func.count(Assignment.id)).where(
-                    Assignment.user_id == current_user.id,
-                    Assignment.returned_date.is_(None),
-                ),
-            )
-            or 0
-        )
-    return render_template(
-        "main/dashboard.html",
-        active_assignment_count=active_count,
-    )
+        return redirect(url_for("main.my_assets"))
+    return render_template("main/dashboard.html")
 
 
 @bp.get("/my-assets")
@@ -61,6 +49,22 @@ def my_assets():
         assignments=rows,
         return_form=EmptyForm(),
     )
+
+
+@bp.get("/my-assets/history")
+@standard_user_required
+def asset_history():
+    rows = (
+        db.session.scalars(
+            select(Assignment)
+            .where(Assignment.user_id == current_user.id)
+            .options(joinedload(Assignment.asset))
+            .order_by(Assignment.assigned_date.desc(), Assignment.id.desc()),
+        )
+        .unique()
+        .all()
+    )
+    return render_template("main/asset_history.html", assignments=rows)
 
 
 @bp.post("/my-assets/<int:asset_id>/return")
@@ -92,8 +96,7 @@ def return_my_asset(asset_id: int):
         return redirect(url_for("main.my_assets"))
 
     row.returned_date = today
-    if asset.status == Status.ASSIGNED:
-        asset.status = Status.AVAILABLE
+    asset.status = Status.RETURNED
 
     db.session.add(
         AuditLog(

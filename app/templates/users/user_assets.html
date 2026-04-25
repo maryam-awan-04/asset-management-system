@@ -5,7 +5,7 @@
     <div class="page-card-inner">
       <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
         <div>
-          <h1 class="hero-title display-6 mb-1">Assigned assets</h1>
+          <h1 class="hero-title display-6 mb-1">Assigned Assets</h1>
           <p class="text-muted mb-0">
             <strong>{{ member.username }}</strong>
             <span class="mx-1">·</span>
@@ -50,6 +50,8 @@
                         <span class="badge rounded-pill bg-success">{{ a.status.value }}</span>
                       {% elif a.status == Status.ASSIGNED %}
                         <span class="badge rounded-pill bg-primary">{{ a.status.value }}</span>
+                      {% elif a.status == Status.RETURNED %}
+                        <span class="badge rounded-pill bg-info text-dark">{{ a.status.value }}</span>
                       {% elif a.status == Status.UNDER_MAINTENANCE %}
                         <span class="badge rounded-pill bg-warning text-dark">{{ a.status.value }}</span>
                       {% elif a.status == Status.RETIRED %}
@@ -101,6 +103,8 @@
                         <span class="badge rounded-pill bg-success">{{ a.status.value }}</span>
                       {% elif a.status == Status.ASSIGNED %}
                         <span class="badge rounded-pill bg-primary">{{ a.status.value }}</span>
+                      {% elif a.status == Status.RETURNED %}
+                        <span class="badge rounded-pill bg-info text-dark">{{ a.status.value }}</span>
                       {% elif a.status == Status.UNDER_MAINTENANCE %}
                         <span class="badge rounded-pill bg-warning text-dark">{{ a.status.value }}</span>
                       {% elif a.status == Status.RETIRED %}

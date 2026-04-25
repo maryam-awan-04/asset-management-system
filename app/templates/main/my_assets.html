@@ -3,13 +3,16 @@
 {% block body %}
   <div class="page-card page-card--wide">
     <div class="page-card-inner">
-      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
-        <h1 class="hero-title display-6 mb-0">My assigned assets</h1>
-        <a class="btn btn-outline-secondary" href="{{ url_for('main.dashboard') }}">Dashboard</a>
+      <div class="mb-4">
+        <h1 class="hero-title display-6 mb-2">My Assets</h1>
+        <p class="text-muted mb-2">
+          Signed in as <strong>{{ current_user.username }}</strong>
+          <span class="dash-meta ms-1">{{ current_user.department.value }}</span>
+        </p>
+        <p class="text-muted small mb-0">
+          These are the assets currently assigned to you. Please remember to submit the return form when you return them to the IT desk.
+        </p>
       </div>
-      <p class="text-muted mb-4">
-        Equipment currently checked out to you. When you physically return hardware to IT, submit a return here so your assignment record is closed.
-      </p>
 
       {% if assignments %}
         <div class="table-responsive">
@@ -20,7 +23,7 @@
                 <th scope="col">Serial</th>
                 <th scope="col">Type</th>
                 <th scope="col">Assigned</th>
-                <th scope="col">Return Date</th>
+                <th scope="col">Return due</th>
                 <th scope="col">Actions</th>
               </tr>
             </thead>
@@ -34,15 +37,12 @@
                   <td>{{ row.assigned_date.strftime("%Y-%m-%d") }}</td>
                   <td>{{ row.return_due_date.strftime("%Y-%m-%d") if row.return_due_date else "—" }}</td>
                   <td class="text-nowrap">
-                    <form
-                      method="post"
-                      action="{{ url_for('main.return_my_asset', asset_id=a.id) }}"
-                      class="d-inline"
-                      onsubmit="return confirm('Record that you returned this asset to IT?');"
-                    >
-                      {{ return_form.hidden_tag() }}
-                      <button type="submit" class="btn btn-sm btn-brand">I returned this</button>
-                    </form>
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-brand js-return-asset"
+                      data-return-url="{{ url_for('main.return_my_asset', asset_id=a.id) }}"
+                      data-asset-label="{{ a.name|e }}"
+                    >Return</button>
                   </td>
                 </tr>
               {% endfor %}
@@ -50,8 +50,56 @@
           </table>
         </div>
       {% else %}
-        <p class="text-muted mb-0">You have no assets currently checked out to you.</p>
+        <p class="text-muted mb-0">You have no assets currently assigned to you. If something is missing, contact IT.</p>
       {% endif %}
     </div>
   </div>
+
+  <dialog id="return-asset-dialog" class="app-dialog" aria-labelledby="return-asset-dialog-title">
+    <div class="app-dialog__surface">
+      <h2 id="return-asset-dialog-title" class="app-dialog__title">Record return</h2>
+      <p class="app-dialog__message" id="return-asset-dialog-message"></p>
+      <form method="post" id="return-asset-dialog-form" class="app-dialog__form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <div class="app-dialog__actions">
+          <button type="button" class="btn btn-outline-secondary" id="return-asset-dialog-cancel">Cancel</button>
+          <button type="submit" class="btn btn-brand">Confirm return</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    (function () {
+      var dialog = document.getElementById("return-asset-dialog");
+      var form = document.getElementById("return-asset-dialog-form");
+      var messageEl = document.getElementById("return-asset-dialog-message");
+      var cancelBtn = document.getElementById("return-asset-dialog-cancel");
+      if (!dialog || !form || !messageEl || !cancelBtn) return;
+
+      cancelBtn.addEventListener("click", function () {
+        dialog.close();
+      });
+
+      dialog.addEventListener("click", function (e) {
+        if (e.target === dialog) dialog.close();
+      });
+
+      document.querySelectorAll(".js-return-asset").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var url = btn.getAttribute("data-return-url");
+          var label = btn.getAttribute("data-asset-label") || "this asset";
+          if (!url) return;
+          form.setAttribute("action", url);
+          messageEl.textContent =
+            'Record that you returned "' +
+            label +
+            '" to IT? Only confirm after you have handed it in.';
+          dialog.showModal();
+        });
+      });
+    })();
+  </script>
 {% endblock %}
