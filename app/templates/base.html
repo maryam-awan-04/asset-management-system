@@ -47,6 +47,10 @@
               href="{{ url_for('main.my_assets') }}"
             >My Assets</a>
             <a
+              class="app-sidebar__link {% if request.endpoint in ('main.my_requests', 'main.request_asset', 'main.edit_my_request') %}is-active{% endif %}"
+              href="{{ url_for('main.my_requests') }}"
+            >My Requests</a>
+            <a
               class="app-sidebar__link {% if request.endpoint == 'main.asset_history' %}is-active{% endif %}"
               href="{{ url_for('main.asset_history') }}"
             >Asset History</a>

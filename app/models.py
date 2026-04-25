@@ -118,14 +118,16 @@ class AssetRequest(db.Model):
     user_id: Mapped[int] = mapped_column(
         db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
-    asset_id: Mapped[int] = mapped_column(
-        db.ForeignKey("assets.id", ondelete="CASCADE"), nullable=False
+    asset_type: Mapped[AssetType] = mapped_column(db.Enum(AssetType), nullable=False)
+    asset_id: Mapped[int | None] = mapped_column(
+        db.ForeignKey("assets.id", ondelete="SET NULL"), nullable=True
     )
     status: Mapped[RequestStatus] = mapped_column(
         db.Enum(RequestStatus),
         nullable=False,
         default=RequestStatus.PENDING,
     )
+    note: Mapped[str] = mapped_column(Text, nullable=False)
     request_date: Mapped[date] = mapped_column(
         db.Date, nullable=False, default=date.today
     )
@@ -138,7 +140,7 @@ class AssetRequest(db.Model):
         back_populates="asset_requests",
         foreign_keys=[user_id],
     )
-    asset: Mapped["Asset"] = relationship(back_populates="asset_requests")
+    asset: Mapped["Asset | None"] = relationship(back_populates="asset_requests")
     approver: Mapped["User | None"] = relationship(
         back_populates="approved_asset_requests",
         foreign_keys=[approved_by],

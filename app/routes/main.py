@@ -1,15 +1,16 @@
 from datetime import date
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, url_for
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
 from app.access import standard_user_required
-from app.enums import AuditAction, Role, Status
+from app.enums import AuditAction, RequestStatus, Role, Status
 from app.extensions import db
+from app.forms.asset_request import AssetRequestCreateForm, AssetRequestEditNoteForm
 from app.forms.empty import EmptyForm
-from app.models import Asset, Assignment, AuditLog
+from app.models import Asset, AssetRequest, Assignment, AuditLog
 
 bp = Blueprint("main", __name__)
 
@@ -65,6 +66,92 @@ def asset_history():
         .all()
     )
     return render_template("main/asset_history.html", assignments=rows)
+
+
+@bp.route("/my-assets/request", methods=["GET", "POST"])
+@standard_user_required
+def request_asset():
+    form = AssetRequestCreateForm()
+
+    if form.validate_on_submit():
+        req = AssetRequest(
+            user_id=current_user.id,
+            asset_type=form.asset_type.data,
+            status=RequestStatus.PENDING,
+            note=form.note.data.strip(),
+        )
+        db.session.add(req)
+        db.session.commit()
+        flash("Request submitted to IT for review.", "success")
+        return redirect(url_for("main.my_requests"))
+
+    return render_template("main/request_asset.html", form=form)
+
+
+@bp.get("/my-assets/requests")
+@standard_user_required
+def my_requests():
+    rows = (
+        db.session.scalars(
+            select(AssetRequest)
+            .where(AssetRequest.user_id == current_user.id)
+            .options(
+                joinedload(AssetRequest.asset),
+                joinedload(AssetRequest.approver),
+            )
+            .order_by(AssetRequest.request_date.desc(), AssetRequest.id.desc())
+        )
+        .unique()
+        .all()
+    )
+    return render_template("main/my_requests.html", requests=rows)
+
+
+@bp.route("/my-assets/requests/<int:request_id>/edit", methods=["GET", "POST"])
+@standard_user_required
+def edit_my_request(request_id: int):
+    req = db.session.get(AssetRequest, request_id)
+    if req is None or req.user_id != current_user.id:
+        flash("That request could not be found.", "warning")
+        return redirect(url_for("main.my_requests"))
+    if req.status != RequestStatus.PENDING:
+        flash("Only pending requests can be edited.", "warning")
+        return redirect(url_for("main.my_requests"))
+
+    if request.method == "GET":
+        form = AssetRequestEditNoteForm(data={"note": req.note})
+    else:
+        form = AssetRequestEditNoteForm(formdata=request.form)
+
+    if form.validate_on_submit():
+        req.note = form.note.data.strip()
+        db.session.commit()
+        flash("Request note updated.", "success")
+        return redirect(url_for("main.my_requests"))
+
+    return render_template("main/edit_request_note.html", form=form, req=req)
+
+
+@bp.post("/my-assets/requests/<int:request_id>/delete")
+@standard_user_required
+def delete_my_request(request_id: int):
+    form = EmptyForm()
+    if not form.validate_on_submit():
+        flash("Could not delete the request. Please try again.", "danger")
+        return redirect(url_for("main.my_requests"))
+
+    req = db.session.get(AssetRequest, request_id)
+    if req is None or req.user_id != current_user.id:
+        flash("That request could not be found.", "warning")
+        return redirect(url_for("main.my_requests"))
+    if req.status != RequestStatus.PENDING:
+        flash("Only pending requests can be deleted.", "warning")
+        return redirect(url_for("main.my_requests"))
+
+    db.session.delete(req)
+    db.session.commit()
+    flash("Pending request deleted.", "info")
+    return redirect(url_for("main.my_requests"))
 
 
 @bp.post("/my-assets/<int:asset_id>/return")
