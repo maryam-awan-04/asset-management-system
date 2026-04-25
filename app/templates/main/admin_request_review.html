@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Review request · Asset Management{% endblock %}
+{% block body %}
+  <div class="page-card page-card--wide">
+    <div class="page-card-inner">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+        <div>
+          <h1 class="hero-title display-6 mb-0">Request #{{ req.id }}</h1>
+          <p class="text-muted small mb-0 mt-1">
+            Requested on {{ req.request_date.strftime("%Y-%m-%d") }} · {{ req.asset_type.value }}
+          </p>
+        </div>
+        <a class="btn btn-outline-secondary" href="{{ url_for('main.admin_requests') }}">Back to Requests</a>
+      </div>
+
+      <div class="mb-4">
+        <p class="mb-1">
+          <strong>User:</strong>
+          {% if req.requester %}
+            {{ req.requester.username }} ({{ req.requester.email }})
+          {% else %}
+            User {{ req.user_id }}
+          {% endif %}
+        </p>
+        <p class="mb-0"><strong>Note:</strong> {{ req.note }}</p>
+      </div>
+
+      <div class="mb-4">
+        <p class="mb-1">
+          <strong>Status:</strong>
+          {% if req.status == RequestStatus.PENDING %}
+            <span class="badge rounded-pill bg-warning text-dark">{{ req.status.value }}</span>
+          {% elif req.status == RequestStatus.APPROVED %}
+            <span class="badge rounded-pill bg-success">{{ req.status.value }}</span>
+          {% elif req.status == RequestStatus.REJECTED %}
+            <span class="badge rounded-pill bg-danger">{{ req.status.value }}</span>
+          {% else %}
+            <span class="badge rounded-pill bg-secondary">{{ req.status.value }}</span>
+          {% endif %}
+        </p>
+        <p class="mb-0 text-muted small">
+          Decision date: {{ req.decision_date.strftime("%Y-%m-%d") if req.decision_date else "—" }}
+          · Reviewer: {{ req.approver.username if req.approver else "—" }}
+        </p>
+      </div>
+
+      {% if req.status == RequestStatus.PENDING %}
+        <form method="post" novalidate>
+          {{ csrf_form.hidden_tag() }}
+
+          <h2 class="h5 mb-3">Available {{ req.asset_type.value }} assets</h2>
+          {% if available_assets %}
+            <div class="table-responsive mb-4">
+              <table class="table assets-table align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th scope="col">Select</th>
+                    <th scope="col">ID</th>
+                    <th scope="col">Name</th>
+                    <th scope="col">Serial</th>
+                    <th scope="col">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for asset in available_assets %}
+                    <tr>
+                      <td>
+                        <input
+                          class="form-check-input"
+                          type="radio"
+                          name="asset_id"
+                          id="asset-choice-{{ asset.id }}"
+                          value="{{ asset.id }}"
+                        />
+                      </td>
+                      <td>{{ asset.id }}</td>
+                      <td>{{ asset.name }}</td>
+                      <td><span class="table-serial">{{ asset.serial_number }}</span></td>
+                      <td><span class="badge rounded-pill bg-success">{{ asset.status.value }}</span></td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+              <button type="submit" class="btn btn-brand" name="decision_action" value="approve">
+                Approve and Assign
+              </button>
+              <button type="submit" class="btn btn-outline-danger" name="decision_action" value="reject">
+                Reject request
+              </button>
+            </div>
+          {% else %}
+            <p class="text-muted mb-3">
+              There are no available assets of this type right now.
+            </p>
+            <div class="d-flex flex-wrap gap-2">
+              <button type="submit" class="btn btn-outline-danger" name="decision_action" value="reject">
+                Reject request
+              </button>
+            </div>
+          {% endif %}
+        </form>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

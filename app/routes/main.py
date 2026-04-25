@@ -5,12 +5,12 @@ from flask_login import current_user, login_required
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
-from app.access import standard_user_required
-from app.enums import AuditAction, RequestStatus, Role, Status
+from app.access import admin_required, standard_user_required
+from app.enums import AssetType, AuditAction, RequestStatus, Role, Status
 from app.extensions import db
 from app.forms.asset_request import AssetRequestCreateForm, AssetRequestEditNoteForm
 from app.forms.empty import EmptyForm
-from app.models import Asset, AssetRequest, Assignment, AuditLog
+from app.models import Asset, AssetRequest, Assignment, AuditLog, User
 
 bp = Blueprint("main", __name__)
 
@@ -27,6 +27,169 @@ def dashboard():
     if current_user.role != Role.ADMIN:
         return redirect(url_for("main.my_assets"))
     return render_template("main/dashboard.html")
+
+
+@bp.get("/admin/requests")
+@admin_required
+def admin_requests():
+    stmt = select(AssetRequest).options(
+        joinedload(AssetRequest.requester),
+        joinedload(AssetRequest.approver),
+        joinedload(AssetRequest.asset),
+    )
+
+    raw_type = request.args.get("asset_type", "").strip()
+    raw_status = request.args.get("request_status", "").strip()
+
+    asset_type_member = None
+    request_status_member = None
+
+    if raw_type:
+        try:
+            asset_type_member = AssetType[raw_type.upper()]
+        except KeyError:
+            asset_type_member = None
+    if raw_status:
+        try:
+            request_status_member = RequestStatus[raw_status.upper()]
+        except KeyError:
+            request_status_member = None
+
+    if asset_type_member is not None:
+        stmt = stmt.where(AssetRequest.asset_type == asset_type_member)
+    if request_status_member is not None:
+        stmt = stmt.where(AssetRequest.status == request_status_member)
+
+    rows = (
+        db.session.scalars(
+            stmt.order_by(AssetRequest.request_date.desc(), AssetRequest.id.desc())
+        )
+        .unique()
+        .all()
+    )
+
+    return render_template(
+        "main/admin_requests.html",
+        requests=rows,
+        filter_asset_type=asset_type_member.name if asset_type_member else "",
+        filter_request_status=(
+            request_status_member.name if request_status_member else ""
+        ),
+    )
+
+
+@bp.route("/admin/requests/<int:request_id>", methods=["GET", "POST"])
+@admin_required
+def admin_review_request(request_id: int):
+    req = db.session.get(
+        AssetRequest,
+        request_id,
+        options=(
+            joinedload(AssetRequest.requester),
+            joinedload(AssetRequest.approver),
+            joinedload(AssetRequest.asset),
+        ),
+    )
+    if req is None:
+        flash("That request could not be found.", "warning")
+        return redirect(url_for("main.admin_requests"))
+
+    available_assets = db.session.scalars(
+        select(Asset)
+        .where(
+            Asset.asset_type == req.asset_type,
+            Asset.status == Status.AVAILABLE,
+        )
+        .order_by(Asset.name.asc(), Asset.id.asc())
+    ).all()
+
+    csrf_form = EmptyForm()
+    if request.method == "POST":
+        if not csrf_form.validate_on_submit():
+            flash("Could not process the request. Please try again.", "danger")
+            return redirect(url_for("main.admin_review_request", request_id=req.id))
+
+        if req.status != RequestStatus.PENDING:
+            flash("Only pending requests can be changed.", "warning")
+            return redirect(url_for("main.admin_review_request", request_id=req.id))
+
+        action = (request.form.get("decision_action") or "").strip().lower()
+        today = date.today()
+
+        if action == "approve":
+            raw_asset_id = (request.form.get("asset_id") or "").strip()
+            if not raw_asset_id.isdigit():
+                flash("Select an available asset before approving.", "danger")
+                return render_template(
+                    "main/admin_request_review.html",
+                    req=req,
+                    available_assets=available_assets,
+                    csrf_form=csrf_form,
+                )
+
+            selected_asset = db.session.get(Asset, int(raw_asset_id))
+            if (
+                selected_asset is None
+                or selected_asset.asset_type != req.asset_type
+                or selected_asset.status != Status.AVAILABLE
+            ):
+                flash(
+                    "That asset is no longer available for this request. Please pick another one.",
+                    "danger",
+                )
+                return redirect(url_for("main.admin_review_request", request_id=req.id))
+
+            selected_asset.status = Status.ASSIGNED
+            req.status = RequestStatus.APPROVED
+            req.decision_date = today
+            req.approved_by = current_user.id
+            req.asset_id = selected_asset.id
+
+            db.session.add(
+                Assignment(
+                    asset_id=selected_asset.id,
+                    user_id=req.user_id,
+                    assigned_date=today,
+                    return_due_date=None,
+                    returned_date=None,
+                ),
+            )
+
+            requester = db.session.get(User, req.user_id)
+            requester_name = requester.username if requester else f"user {req.user_id}"
+            db.session.add(
+                AuditLog(
+                    user_id=current_user.id,
+                    action=AuditAction.ASSET_ASSIGNED,
+                    details=(
+                        f"{selected_asset.serial_number}: {selected_asset.name} | assigned to "
+                        f"{requester_name} via request #{req.id}"
+                    ),
+                ),
+            )
+
+            db.session.commit()
+            flash("Request approved and asset assigned.", "success")
+            return redirect(url_for("main.admin_requests"))
+
+        if action == "reject":
+            req.status = RequestStatus.REJECTED
+            req.decision_date = today
+            req.approved_by = current_user.id
+            req.asset_id = None
+            db.session.commit()
+            flash("Request rejected.", "info")
+            return redirect(url_for("main.admin_requests"))
+
+        flash("Invalid action.", "danger")
+        return redirect(url_for("main.admin_review_request", request_id=req.id))
+
+    return render_template(
+        "main/admin_request_review.html",
+        req=req,
+        available_assets=available_assets,
+        csrf_form=csrf_form,
+    )
 
 
 @bp.get("/my-assets")

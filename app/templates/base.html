@@ -41,6 +41,10 @@
               class="app-sidebar__link {% if request.endpoint in ('users.list_users', 'users.edit_user', 'users.view_user_assets') %}is-active{% endif %}"
               href="{{ url_for('users.list_users') }}"
             >Users</a>
+            <a
+              class="app-sidebar__link {% if request.endpoint in ('main.admin_requests', 'main.admin_review_request') %}is-active{% endif %}"
+              href="{{ url_for('main.admin_requests') }}"
+            >Requests</a>
           {% else %}
             <a
               class="app-sidebar__link {% if request.endpoint in ('main.my_assets', 'main.return_my_asset') %}is-active{% endif %}"

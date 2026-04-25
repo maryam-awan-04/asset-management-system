@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Requests · Asset Management{% endblock %}
+{% block body %}
+  <div class="page-card page-card--wide">
+    <div class="page-card-inner">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+        <h1 class="hero-title display-6 mb-0">Requests</h1>
+      </div>
+
+      <form class="assets-filter mb-4" method="get" action="{{ url_for('main.admin_requests') }}">
+        <div class="row g-3 align-items-end">
+          <div class="col-sm-6 col-md-4 col-lg-3">
+            <label class="form-label" for="filter-asset-type">Asset type</label>
+            <select
+              class="form-select"
+              id="filter-asset-type"
+              name="asset_type"
+              onchange="this.form.submit()"
+            >
+              <option value="" {% if not filter_asset_type %}selected{% endif %}>All types</option>
+              {% for t in AssetType %}
+                <option value="{{ t.name }}" {% if filter_asset_type == t.name %}selected{% endif %}>{{ t.value }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-sm-6 col-md-4 col-lg-3">
+            <label class="form-label" for="filter-request-status">Request status</label>
+            <select
+              class="form-select"
+              id="filter-request-status"
+              name="request_status"
+              onchange="this.form.submit()"
+            >
+              <option value="" {% if not filter_request_status %}selected{% endif %}>All statuses</option>
+              {% for s in RequestStatus %}
+                <option value="{{ s.name }}" {% if filter_request_status == s.name %}selected{% endif %}>{{ s.value }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-auto d-flex flex-wrap gap-2 align-items-end">
+            <a class="btn btn-outline-secondary" href="{{ url_for('main.admin_requests') }}">Clear filters</a>
+          </div>
+        </div>
+      </form>
+
+      {% if filter_asset_type or filter_request_status %}
+        <p class="text-muted small mb-3">
+          Showing {{ requests|length }} matching request{% if requests|length != 1 %}s{% endif %}.
+        </p>
+      {% endif %}
+
+      {% if requests %}
+        <div class="table-responsive">
+          <table class="table assets-table align-middle mb-0">
+            <thead>
+              <tr>
+                <th scope="col">Requested</th>
+                <th scope="col">User</th>
+                <th scope="col">Asset type</th>
+                <th scope="col">Note</th>
+                <th scope="col">Status</th>
+                <th scope="col">Decision date</th>
+                <th scope="col">Reviewer</th>
+                <th scope="col">Assigned asset</th>
+                <th scope="col">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for req in requests %}
+                <tr>
+                  <td>{{ req.request_date.strftime("%Y-%m-%d") }}</td>
+                  <td>
+                    {% if req.requester %}
+                      {{ req.requester.username }} <span class="text-muted small">({{ req.requester.email }})</span>
+                    {% else %}
+                      User {{ req.user_id }}
+                    {% endif %}
+                  </td>
+                  <td>{{ req.asset_type.value }}</td>
+                  <td class="text-muted small">{{ req.note }}</td>
+                  <td>
+                    {% if req.status == RequestStatus.PENDING %}
+                      <span class="badge rounded-pill bg-warning text-dark">{{ req.status.value }}</span>
+                    {% elif req.status == RequestStatus.APPROVED %}
+                      <span class="badge rounded-pill bg-success">{{ req.status.value }}</span>
+                    {% elif req.status == RequestStatus.REJECTED %}
+                      <span class="badge rounded-pill bg-danger">{{ req.status.value }}</span>
+                    {% else %}
+                      <span class="badge rounded-pill bg-secondary">{{ req.status.value }}</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ req.decision_date.strftime("%Y-%m-%d") if req.decision_date else "—" }}</td>
+                  <td>{{ req.approver.username if req.approver else "—" }}</td>
+                  <td>
+                    {% if req.asset %}
+                      {{ req.asset.name }} <span class="table-serial">({{ req.asset.serial_number }})</span>
+                    {% else %}
+                      —
+                    {% endif %}
+                  </td>
+                  <td class="text-nowrap">
+                    <a
+                      class="btn btn-sm {% if req.status == RequestStatus.PENDING %}btn-outline-primary{% else %}btn-outline-secondary{% endif %}"
+                      href="{{ url_for('main.admin_review_request', request_id=req.id) }}"
+                    >{% if req.status == RequestStatus.PENDING %}Review{% else %}View{% endif %}</a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="text-muted mb-0">No requests submitted yet.</p>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}
