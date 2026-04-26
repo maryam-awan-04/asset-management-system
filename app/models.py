@@ -76,10 +76,7 @@ class Asset(db.Model):
     assignments: Mapped[list["Assignment"]] = relationship(
         back_populates="asset", cascade="all, delete-orphan"
     )
-    asset_requests: Mapped[list["AssetRequest"]] = relationship(
-        back_populates="asset",
-        cascade="all, delete-orphan",
-    )
+    asset_requests: Mapped[list["AssetRequest"]] = relationship(back_populates="asset")
 
     def __repr__(self) -> str:
         return f"<Asset {self.name!r}>"

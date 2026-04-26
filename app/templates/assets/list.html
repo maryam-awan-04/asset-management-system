@@ -38,13 +38,25 @@
               {% endfor %}
             </select>
           </div>
+          <div class="col-sm-6 col-md-4 col-lg-3">
+            <label class="form-label" for="filter-overdue">Return due</label>
+            <select
+              class="form-select"
+              id="filter-overdue"
+              name="overdue"
+              onchange="this.form.submit()"
+            >
+              <option value="" {% if not filter_overdue %}selected{% endif %}>All</option>
+              <option value="1" {% if filter_overdue %}selected{% endif %}>Overdue only</option>
+            </select>
+          </div>
           <div class="col-auto d-flex flex-wrap gap-2 align-items-end">
             <a class="btn btn-outline-secondary" href="{{ url_for('assets.list_assets') }}">Clear filters</a>
           </div>
         </div>
       </form>
 
-      {% if filter_asset_type or filter_status %}
+      {% if filter_asset_type or filter_status or filter_overdue %}
         <p class="text-muted small mb-3">
           Showing {{ assets|length }} matching asset{% if assets|length != 1 %}s{% endif %}.
         </p>
@@ -62,6 +74,7 @@
                 <th scope="col">Status</th>
                 <th scope="col">Purchase</th>
                 <th scope="col">Expiry</th>
+                <th scope="col">Return due</th>
                 <th scope="col">Notes</th>
                 <th scope="col">Actions</th>
               </tr>
@@ -90,6 +103,7 @@
                   </td>
                   <td>{{ a.purchase_date.strftime("%Y-%m-%d") if a.purchase_date else "—" }}</td>
                   <td>{{ a.expiry_date.strftime("%Y-%m-%d") if a.expiry_date else "—" }}</td>
+                  <td>{{ active_return_due_by_asset.get(a.id, "—") }}</td>
                   <td class="text-muted small">
                     {% set note = a.notes or "" %}
                     {{ (note[:80] if note else "—") }}{% if note|length > 80 %}…{% endif %}
@@ -129,7 +143,7 @@
         </div>
       {% else %}
         <p class="text-muted mb-0">
-          {% if filter_asset_type or filter_status %}
+          {% if filter_asset_type or filter_status or filter_overdue %}
             No assets match these filters.
           {% else %}
             No assets in the database yet.

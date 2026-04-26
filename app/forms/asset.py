@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date
+
 from flask_wtf import FlaskForm
 from sqlalchemy import func, select
 from wtforms import (
@@ -157,6 +159,14 @@ class AssetEditForm(AssetCreateForm):
 
     def validate(self, extra_validators=None):  # type: ignore[no-untyped-def]
         result = super().validate(extra_validators=extra_validators)
+        if (
+            self.assignment_return_due.data is not None
+            and self.assignment_return_due.data < date.today()
+        ):
+            self.assignment_return_due.errors.append(
+                "Return date cannot be before today.",
+            )
+            result = False
         if self.status.data == Status.RETURNED:
             if self.returned_on.data is None:
                 self.returned_on.errors.append(

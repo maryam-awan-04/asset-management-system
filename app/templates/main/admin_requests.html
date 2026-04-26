@@ -59,9 +59,6 @@
                 <th scope="col">Asset type</th>
                 <th scope="col">Note</th>
                 <th scope="col">Status</th>
-                <th scope="col">Decision date</th>
-                <th scope="col">Reviewer</th>
-                <th scope="col">Assigned asset</th>
                 <th scope="col">Actions</th>
               </tr>
             </thead>
@@ -71,7 +68,7 @@
                   <td>{{ req.request_date.strftime("%Y-%m-%d") }}</td>
                   <td>
                     {% if req.requester %}
-                      {{ req.requester.username }} <span class="text-muted small">({{ req.requester.email }})</span>
+                      {{ req.requester.username }}
                     {% else %}
                       User {{ req.user_id }}
                     {% endif %}
@@ -89,20 +86,11 @@
                       <span class="badge rounded-pill bg-secondary">{{ req.status.value }}</span>
                     {% endif %}
                   </td>
-                  <td>{{ req.decision_date.strftime("%Y-%m-%d") if req.decision_date else "—" }}</td>
-                  <td>{{ req.approver.username if req.approver else "—" }}</td>
-                  <td>
-                    {% if req.asset %}
-                      {{ req.asset.name }} <span class="table-serial">({{ req.asset.serial_number }})</span>
-                    {% else %}
-                      —
-                    {% endif %}
-                  </td>
                   <td class="text-nowrap">
                     <a
                       class="btn btn-sm {% if req.status == RequestStatus.PENDING %}btn-outline-primary{% else %}btn-outline-secondary{% endif %}"
                       href="{{ url_for('main.admin_review_request', request_id=req.id) }}"
-                    >{% if req.status == RequestStatus.PENDING %}Review{% else %}View{% endif %}</a>
+                    >{% if req.status == RequestStatus.PENDING %}Review{% else %}Details{% endif %}</a>
                   </td>
                 </tr>
               {% endfor %}

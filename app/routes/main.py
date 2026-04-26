@@ -2,7 +2,7 @@ from datetime import date
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
 
 from app.access import admin_required, standard_user_required
@@ -13,6 +13,31 @@ from app.forms.empty import EmptyForm
 from app.models import Asset, AssetRequest, Assignment, AuditLog, User
 
 bp = Blueprint("main", __name__)
+
+_ASSET_NOTES_MAX_LEN = 4000
+
+
+def _admin_request_review_template_kwargs(
+    *,
+    req: AssetRequest,
+    available_assets: list[Asset],
+    csrf_form: EmptyForm,
+    selected_asset_id: str,
+    selected_return_due: str,
+    selected_asset_notes: str,
+) -> dict:
+    return {
+        "req": req,
+        "available_assets": available_assets,
+        "csrf_form": csrf_form,
+        "selected_asset_id": selected_asset_id,
+        "selected_return_due": selected_return_due,
+        "selected_asset_notes": selected_asset_notes,
+        "assets_notes_by_id": {
+            str(a.id): ("" if a.notes is None else str(a.notes))
+            for a in available_assets
+        },
+    }
 
 
 @bp.get("/")
@@ -26,7 +51,56 @@ def index():
 def dashboard():
     if current_user.role != Role.ADMIN:
         return redirect(url_for("main.my_assets"))
-    return render_template("main/dashboard.html")
+
+    total_assets = db.session.scalar(select(func.count(Asset.id))) or 0
+    available_assets = (
+        db.session.scalar(
+            select(func.count(Asset.id)).where(Asset.status == Status.AVAILABLE),
+        )
+        or 0
+    )
+    assigned_assets = (
+        db.session.scalar(
+            select(func.count(Asset.id)).where(Asset.status == Status.ASSIGNED),
+        )
+        or 0
+    )
+    assignable_pool = available_assets + assigned_assets
+    utilisation_pct: float | None = (
+        round((assigned_assets / assignable_pool) * 100, 1) if assignable_pool else None
+    )
+
+    overdue_assignments = (
+        db.session.scalar(
+            select(func.count(Assignment.id)).where(
+                Assignment.returned_date.is_(None),
+                Assignment.return_due_date.is_not(None),
+                Assignment.return_due_date < date.today(),
+            ),
+        )
+        or 0
+    )
+
+    total_requests = db.session.scalar(select(func.count(AssetRequest.id))) or 0
+    pending_requests = (
+        db.session.scalar(
+            select(func.count(AssetRequest.id)).where(
+                AssetRequest.status == RequestStatus.PENDING
+            ),
+        )
+        or 0
+    )
+
+    return render_template(
+        "main/dashboard.html",
+        total_assets=total_assets,
+        available_assets=available_assets,
+        assigned_assets=assigned_assets,
+        utilisation_pct=utilisation_pct,
+        overdue_assignments=overdue_assignments,
+        total_requests=total_requests,
+        pending_requests=pending_requests,
+    )
 
 
 @bp.get("/admin/requests")
@@ -118,13 +192,68 @@ def admin_review_request(request_id: int):
 
         if action == "approve":
             raw_asset_id = (request.form.get("asset_id") or "").strip()
+            raw_return_due = (request.form.get("return_due_date") or "").strip()
+            asset_notes_raw = request.form.get("asset_notes") or ""
+            if len(asset_notes_raw) > _ASSET_NOTES_MAX_LEN:
+                flash(
+                    f"Asset notes cannot exceed {_ASSET_NOTES_MAX_LEN} characters.",
+                    "danger",
+                )
+                return render_template(
+                    "main/admin_request_review.html",
+                    **_admin_request_review_template_kwargs(
+                        req=req,
+                        available_assets=available_assets,
+                        csrf_form=csrf_form,
+                        selected_asset_id=raw_asset_id,
+                        selected_return_due=raw_return_due,
+                        selected_asset_notes=asset_notes_raw,
+                    ),
+                )
+            return_due_date = None
+            if raw_return_due:
+                try:
+                    return_due_date = date.fromisoformat(raw_return_due)
+                except ValueError:
+                    flash(
+                        "Return due date must be a valid date (YYYY-MM-DD).", "danger"
+                    )
+                    return render_template(
+                        "main/admin_request_review.html",
+                        **_admin_request_review_template_kwargs(
+                            req=req,
+                            available_assets=available_assets,
+                            csrf_form=csrf_form,
+                            selected_asset_id=raw_asset_id,
+                            selected_return_due=raw_return_due,
+                            selected_asset_notes=asset_notes_raw,
+                        ),
+                    )
+                if return_due_date < today:
+                    flash("Return due date cannot be before today.", "danger")
+                    return render_template(
+                        "main/admin_request_review.html",
+                        **_admin_request_review_template_kwargs(
+                            req=req,
+                            available_assets=available_assets,
+                            csrf_form=csrf_form,
+                            selected_asset_id=raw_asset_id,
+                            selected_return_due=raw_return_due,
+                            selected_asset_notes=asset_notes_raw,
+                        ),
+                    )
             if not raw_asset_id.isdigit():
                 flash("Select an available asset before approving.", "danger")
                 return render_template(
                     "main/admin_request_review.html",
-                    req=req,
-                    available_assets=available_assets,
-                    csrf_form=csrf_form,
+                    **_admin_request_review_template_kwargs(
+                        req=req,
+                        available_assets=available_assets,
+                        csrf_form=csrf_form,
+                        selected_asset_id=raw_asset_id,
+                        selected_return_due=raw_return_due,
+                        selected_asset_notes=asset_notes_raw,
+                    ),
                 )
 
             selected_asset = db.session.get(Asset, int(raw_asset_id))
@@ -139,6 +268,8 @@ def admin_review_request(request_id: int):
                 )
                 return redirect(url_for("main.admin_review_request", request_id=req.id))
 
+            cleaned_notes = asset_notes_raw.strip()
+            selected_asset.notes = cleaned_notes or None
             selected_asset.status = Status.ASSIGNED
             req.status = RequestStatus.APPROVED
             req.decision_date = today
@@ -150,7 +281,7 @@ def admin_review_request(request_id: int):
                     asset_id=selected_asset.id,
                     user_id=req.user_id,
                     assigned_date=today,
-                    return_due_date=None,
+                    return_due_date=return_due_date,
                     returned_date=None,
                 ),
             )
@@ -164,6 +295,7 @@ def admin_review_request(request_id: int):
                     details=(
                         f"{selected_asset.serial_number}: {selected_asset.name} | assigned to "
                         f"{requester_name} via request #{req.id}"
+                        f"{f'; return due {return_due_date.isoformat()}' if return_due_date else ''}"
                     ),
                 ),
             )
@@ -186,9 +318,14 @@ def admin_review_request(request_id: int):
 
     return render_template(
         "main/admin_request_review.html",
-        req=req,
-        available_assets=available_assets,
-        csrf_form=csrf_form,
+        **_admin_request_review_template_kwargs(
+            req=req,
+            available_assets=available_assets,
+            csrf_form=csrf_form,
+            selected_asset_id="",
+            selected_return_due="",
+            selected_asset_notes="",
+        ),
     )
 
 

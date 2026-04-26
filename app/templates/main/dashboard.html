@@ -1,14 +1,47 @@
 {% extends "base.html" %}
 {% block title %}Dashboard · Asset Management{% endblock %}
 {% block body %}
-  <div class="page-card">
+  <div class="page-card page-card--wide">
     <div class="page-card-inner">
-      <h1 class="hero-title display-6 mb-3">Dashboard</h1>
-      <p class="mb-2">
+      <h1 class="hero-title display-6 mb-2">Dashboard</h1>
+      <p class="mb-4">
         You are signed in as <strong>{{ current_user.username }}</strong>
         <span class="dash-meta ms-1">{{ current_user.role.value }}</span>
         <span class="dash-meta ms-1">{{ current_user.department.value }}</span>
       </p>
+
+      <div class="dashboard-metrics mb-4">
+        <article class="dashboard-metric-card">
+          <p class="dashboard-metric-label">Total assets</p>
+          <p class="dashboard-metric-value">{{ total_assets }}</p>
+          <p class="dashboard-metric-note">Available: {{ available_assets }} · Assigned: {{ assigned_assets }}</p>
+        </article>
+        <article class="dashboard-metric-card">
+          <p class="dashboard-metric-label">Asset utilisation</p>
+          <p class="dashboard-metric-value">
+            {% if utilisation_pct is none %}—{% else %}{{ "%.1f"|format(utilisation_pct) }}%{% endif %}
+          </p>
+          <p class="dashboard-metric-note">
+            Assigned share of assignable stock (assigned + available assets only).
+          </p>
+        </article>
+        <a
+          class="dashboard-metric-card dashboard-metric-card--link"
+          href="{{ url_for('main.admin_requests', request_status='PENDING') }}"
+        >
+          <p class="dashboard-metric-label">Open requests</p>
+          <p class="dashboard-metric-value">{{ pending_requests }}</p>
+          <p class="dashboard-metric-note">Pending out of {{ total_requests }} total requests</p>
+        </a>
+        <a
+          class="dashboard-metric-card dashboard-metric-card--link"
+          href="{{ url_for('assets.list_assets', overdue='1') }}"
+        >
+          <p class="dashboard-metric-label">Overdue returns</p>
+          <p class="dashboard-metric-value">{{ overdue_assignments }}</p>
+          <p class="dashboard-metric-note">Assigned with due date already passed</p>
+        </a>
+      </div>
     </div>
   </div>
 {% endblock %}

@@ -71,6 +71,7 @@
                           name="asset_id"
                           id="asset-choice-{{ asset.id }}"
                           value="{{ asset.id }}"
+                          {% if selected_asset_id == (asset.id|string) %}checked{% endif %}
                         />
                       </td>
                       <td>{{ asset.id }}</td>
@@ -82,6 +83,42 @@
                 </tbody>
               </table>
             </div>
+            <div class="mb-4" style="max-width: 20rem;">
+              <label class="form-label" for="return_due_date">Return due date (optional)</label>
+              <input
+                type="date"
+                class="form-control"
+                id="return_due_date"
+                name="return_due_date"
+                value="{{ selected_return_due }}"
+              />
+            </div>
+            <div class="mb-4" style="max-width: 36rem;">
+              <label class="form-label" for="admin-approve-asset-notes">Asset notes</label>
+              <textarea
+                class="form-control"
+                id="admin-approve-asset-notes"
+                name="asset_notes"
+                rows="4"
+                maxlength="4000"
+                placeholder="Select asset."
+              >{{ selected_asset_notes }}</textarea>
+            </div>
+            <script>
+              (() => {
+                const byId = {{ (assets_notes_by_id | default({})) | tojson }};
+                const ta = document.getElementById("admin-approve-asset-notes");
+                const radios = document.querySelectorAll('input[name="asset_id"]');
+                if (!ta || !radios.length) return;
+                function syncFromSelection() {
+                  const checked = document.querySelector('input[name="asset_id"]:checked');
+                  if (!checked) return;
+                  ta.value = byId[checked.value] ?? "";
+                }
+                radios.forEach((r) => r.addEventListener("change", syncFromSelection));
+                if (ta.value.trim() === "") syncFromSelection();
+              })();
+            </script>
             <div class="d-flex flex-wrap gap-2">
               <button type="submit" class="btn btn-brand" name="decision_action" value="approve">
                 Approve and Assign

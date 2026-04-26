@@ -176,9 +176,11 @@ def list_assets():
 
     raw_type = request.args.get("asset_type", "")
     raw_status = request.args.get("status", "")
+    raw_overdue = (request.args.get("overdue") or "").strip().lower()
 
     type_member = _enum_by_name(AssetType, raw_type)
     status_member = _enum_by_name(Status, raw_status)
+    filter_overdue = raw_overdue in {"1", "true", "yes", "on"}
 
     type_key = type_member.name if type_member is not None else ""
     status_key = status_member.name if status_member is not None else ""
@@ -187,13 +189,49 @@ def list_assets():
         stmt = stmt.where(Asset.asset_type == type_member)
     if status_member is not None:
         stmt = stmt.where(Asset.status == status_member)
+    if filter_overdue:
+        overdue_exists = (
+            select(Assignment.id)
+            .where(
+                Assignment.asset_id == Asset.id,
+                Assignment.returned_date.is_(None),
+                Assignment.return_due_date.is_not(None),
+                Assignment.return_due_date < date.today(),
+            )
+            .exists()
+        )
+        stmt = stmt.where(overdue_exists)
 
     assets = db.session.scalars(stmt).all()
+    active_return_due_by_asset: dict[int, str] = {}
+    if assets:
+        asset_ids = [a.id for a in assets]
+        open_assignments = db.session.scalars(
+            select(Assignment)
+            .where(
+                Assignment.asset_id.in_(asset_ids),
+                Assignment.returned_date.is_(None),
+            )
+            .order_by(
+                Assignment.asset_id.asc(),
+                Assignment.assigned_date.desc(),
+                Assignment.id.desc(),
+            ),
+        ).all()
+        for row in open_assignments:
+            if row.asset_id not in active_return_due_by_asset:
+                active_return_due_by_asset[row.asset_id] = (
+                    row.return_due_date.strftime("%Y-%m-%d")
+                    if row.return_due_date is not None
+                    else "—"
+                )
     html = render_template(
         "assets/list.html",
         assets=assets,
         filter_asset_type=type_key,
         filter_status=status_key,
+        filter_overdue=filter_overdue,
+        active_return_due_by_asset=active_return_due_by_asset,
     )
     resp = make_response(html)
     resp.headers["Cache-Control"] = "private, no-store"
@@ -317,7 +355,7 @@ def edit_asset(asset_id: int):
         ):
             flash(
                 "This asset is assigned to a user. They must return it before the status can be changed, "
-                "or set status to Returned and enter the return date to close the checkout.",
+                "or set status to Returned and enter the return date to record the return.",
                 "danger",
             )
             return render_template(
