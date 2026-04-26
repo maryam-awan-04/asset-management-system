@@ -6,7 +6,7 @@ from typing import Optional
 from flask import Flask
 
 from app.config import get_config
-from app.extensions import csrf, db, login_manager
+from app.extensions import csrf, db, limiter, login_manager
 from app.forms.empty import EmptyForm
 
 
@@ -23,6 +23,7 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     db.init_app(app)
     login_manager.init_app(app)
     csrf.init_app(app)
+    limiter.init_app(app)
 
     login_manager.login_view = "auth.login"
 

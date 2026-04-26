@@ -305,10 +305,23 @@ def admin_review_request(request_id: int):
             return redirect(url_for("main.admin_requests"))
 
         if action == "reject":
+            requester_label = (
+                req.requester.username if req.requester else f"user_id={req.user_id}"
+            )
             req.status = RequestStatus.REJECTED
             req.decision_date = today
             req.approved_by = current_user.id
             req.asset_id = None
+            db.session.add(
+                AuditLog(
+                    user_id=current_user.id,
+                    action=AuditAction.ASSET_REQUEST_REJECTED,
+                    details=(
+                        f"Request #{req.id} | {req.asset_type.value} | "
+                        f"requester {requester_label}"
+                    ),
+                ),
+            )
             db.session.commit()
             flash("Request rejected.", "info")
             return redirect(url_for("main.admin_requests"))
@@ -381,6 +394,17 @@ def request_asset():
             note=form.note.data.strip(),
         )
         db.session.add(req)
+        db.session.flush()
+        db.session.add(
+            AuditLog(
+                user_id=current_user.id,
+                action=AuditAction.ASSET_REQUEST_SUBMITTED,
+                details=(
+                    f"Request #{req.id} | {req.asset_type.value} | "
+                    f"submitted by {current_user.username}"
+                ),
+            ),
+        )
         db.session.commit()
         flash("Request submitted to IT for review.", "success")
         return redirect(url_for("main.my_requests"))
@@ -448,6 +472,15 @@ def delete_my_request(request_id: int):
         flash("Only pending requests can be deleted.", "warning")
         return redirect(url_for("main.my_requests"))
 
+    rid = req.id
+    atype = req.asset_type.value
+    db.session.add(
+        AuditLog(
+            user_id=current_user.id,
+            action=AuditAction.ASSET_REQUEST_DELETED,
+            details=f"Request #{rid} | {atype} | pending request withdrawn",
+        ),
+    )
     db.session.delete(req)
     db.session.commit()
     flash("Pending request deleted.", "info")

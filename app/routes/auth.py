@@ -5,7 +5,7 @@ from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy import or_, select
 
 from app.enums import AuditAction, Role
-from app.extensions import db
+from app.extensions import db, limiter
 from app.forms.auth import LoginForm, RegistrationForm
 from app.models import AuditLog, User
 from app.passwords import hash_password, passwords_match
@@ -29,6 +29,7 @@ def _audit(
 
 
 @bp.route("/login", methods=["GET", "POST"])
+@limiter.limit("12/minute", methods=["POST"])
 def login():
     if current_user.is_authenticated:
         return redirect(_home_url_for_role(current_user.role))
@@ -62,6 +63,7 @@ def login():
 
 
 @bp.route("/register", methods=["GET", "POST"])
+@limiter.limit("6/minute", methods=["POST"])
 def register():
     if current_user.is_authenticated:
         return redirect(_home_url_for_role(current_user.role))
@@ -105,6 +107,14 @@ def register():
 @bp.route("/logout", methods=["POST"])
 @login_required
 def logout():
+    uid = current_user.id
+    uname = current_user.username
     logout_user()
+    _audit(
+        uid,
+        AuditAction.LOGOUT,
+        f"username={uname}",
+    )
+    db.session.commit()
     flash("You have been signed out.", "info")
     return redirect(url_for("auth.login"))

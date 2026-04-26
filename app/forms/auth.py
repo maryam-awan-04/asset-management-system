@@ -41,7 +41,10 @@ class LoginForm(FlaskForm):
     )
     password = PasswordField(
         "Password",
-        validators=[DataRequired(message="Password is required.")],
+        validators=[
+            DataRequired(message="Password is required."),
+            Length(max=128, message="Password cannot exceed 128 characters."),
+        ],
     )
     remember_me = BooleanField("Stay signed in")
     submit = SubmitField("Sign in")
@@ -75,7 +78,11 @@ class RegistrationForm(FlaskForm):
         "Password",
         validators=[
             DataRequired(),
-            Length(min=8, message="Password must be at least 8 characters."),
+            Length(
+                min=8,
+                max=128,
+                message="Password must be between 8 and 128 characters.",
+            ),
             _password_has_digit,
             _password_has_symbol,
         ],

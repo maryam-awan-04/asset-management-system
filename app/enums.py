@@ -43,6 +43,7 @@ class Department(Enum):
 class AuditAction(Enum):
     LOGIN_SUCCESS = "Login Success"
     LOGIN_FAILED = "Login Failed"
+    LOGOUT = "Logout"
     USER_CREATED = "User Created"
     USER_UPDATED = "User Updated"
     USER_DELETED = "User Deleted"
@@ -51,7 +52,6 @@ class AuditAction(Enum):
     ASSET_DELETED = "Asset Deleted"
     ASSET_ASSIGNED = "Asset Assigned"
     ASSET_RETURNED = "Asset Returned"
-    ASSET_MAINTENANCE = "Asset Maintenance"
-    ASSET_DISPOSED = "Asset Disposed"
-    ASSET_RETIRED = "Asset Retired"
-    ASSET_REASSIGNED = "Asset Reassigned"
+    ASSET_REQUEST_SUBMITTED = "Asset Request Submitted"
+    ASSET_REQUEST_REJECTED = "Asset Request Rejected"
+    ASSET_REQUEST_DELETED = "Asset Request Deleted"
