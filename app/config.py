@@ -25,10 +25,19 @@ class ProductionConfig(Config):
     SESSION_COOKIE_SECURE = True
 
 
+class TestingConfig(Config):
+    TESTING = True
+    DEBUG = False
+    WTF_CSRF_ENABLED = False
+    RATELIMIT_ENABLED = False
+    SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
+
+
 def get_config(name: Optional[str]) -> Type[Config]:
     mapping = {
         "development": DevelopmentConfig,
         "production": ProductionConfig,
+        "testing": TestingConfig,
     }
     key = (name or os.environ.get("FLASK_CONFIG") or "development").lower()
     return mapping.get(key, DevelopmentConfig)

@@ -41,6 +41,12 @@ Stack: Python 3.10+, Flask, Flask-SQLAlchemy (SQLite), Flask-Login, Flask-WTF, F
    pip install -r requirements.txt
    ```
 
+   For [running tests](#testing) and coverage, also install dev tools:
+
+   ```bash
+   pip install -r requirements-dev.txt
+   ```
+
 4. Run (loads `.env` if present):
 
    ```bash
@@ -60,7 +66,7 @@ Environment variables
 | Variable | Purpose |
 |:---------|:--------|
 | `SECRET_KEY` | Session signing. Set in production; defaults to a dev placeholder. |
-| `FLASK_CONFIG` | `development` (default) or `production`. |
+| `FLASK_CONFIG` | `development` (default), `production`, or `testing` (used by pytest only). |
 | `LOCALDEV_ADMIN_PASSWORD` | Password for seeded user `localdev` (default in code if unset). |
 
 Optional `.env` in the project root:
@@ -127,6 +133,11 @@ app/
     ...
   static/css/
   templates/        # Jinja2
+tests/
+  conftest.py       # Pytest fixtures (app, client, seeded users)
+  unit/             # Tests against forms, helpers, etc
+  integration/      # HTTP tests against the test client
+pytest.ini
 run.py              # load_dotenv + create_app + app.run
 wsgi.py             # WSGI entry for production servers
 requirements.txt
@@ -134,7 +145,29 @@ requirements.txt
 
 ## Testing
 
-There is no automated test suite in this repo yet; manual checks should cover admin vs user routes and CSRF on POST actions.
+Automated tests use **pytest** with `create_app("testing")`. `TestingConfig` (`app/config.py`) uses an in-memory SQLite database, disables CSRF and rate limits for simpler POST assertions, and does not run demo seed data.
+
+### Run tests
+
+From the project root (with dev dependencies installed):
+
+```bash
+pytest
+```
+
+### Coverage
+
+Terminal report with line gaps for `app/`:
+
+```bash
+pytest tests/ --cov=app --cov-report=term-missing
+```
+
+HTML report:
+
+```bash
+pytest tests/ --cov=app --cov-report=html
+```
 
 ---
 

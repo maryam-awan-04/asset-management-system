@@ -16,9 +16,12 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     config_class = get_config(config_name)
     app.config.from_object(config_class)
 
-    os.makedirs(app.instance_path, exist_ok=True)
-    db_path = os.path.join(app.instance_path, "app.db")
-    app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
+    if app.config.get("TESTING"):
+        os.makedirs(app.instance_path, exist_ok=True)
+    else:
+        os.makedirs(app.instance_path, exist_ok=True)
+        db_path = os.path.join(app.instance_path, "app.db")
+        app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
 
     db.init_app(app)
     login_manager.init_app(app)
