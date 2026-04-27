@@ -1,258 +1,20 @@
-"""Development-only data seeding."""
+﻿from __future__ import annotations
 
-from __future__ import annotations
-
-import os
 from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import select
 
-from app.enums import AssetType, AuditAction, Department, RequestStatus, Role, Status
+from app.enums import AssetType, AuditAction, Department, Role, Status
 from app.extensions import db
-from app.models import Asset, AssetRequest, Assignment, AuditLog, User
+from app.models import Asset, Assignment, AuditLog, User
 from app.passwords import hash_password
-
-LOCALDEV_USERNAME = "localdev"
-LOCALDEV_EMAIL = "localdev@gmail.com"
-
-SEED_SERIAL_MARKER = "IT-LP-24-00891"
-SEED_USER_PASSWORD = os.environ.get("SEED_USER_PASSWORD", "SeedDemo1!")
-
-SEED_EMAIL_DOMAIN = "demo.com"
-
-_DEMO_ASSET_SERIALS = frozenset(
-    {
-        "IT-LP-24-00891",
-        "LEN-PF4ZK9Q2",
-        "DELL-U3223QE-4KQ2N1",
-        "DELL-P2723DE-8MZ3K9",
-        "LOG-MXK-BKEY-00221",
-        "APL-FVFK71Q9Q05D",
-        "MSFT-SL5-9K2M4410",
-        "DELL-U2424H-3N8KQ7",
-        "LOG-MXM3S-11K882",
-        "LOG-MXA3S-44B901",
-        "JBR-EV275-QP93L2",
-        "POL-P15-UK90M1",
-        "ELG-FCPRO-7HX22",
-        "SHR-MV7-USB-44102",
-        "MSFT-M365-E5-SN8841201",
-        "ADOBE-CC-TM-2025-77102",
-        "DELL-P2422H-EOL-1993",
-        "KEY-Q6PRO-BK88",
-    },
+from app.seed.constants import (
+    LOCALDEV_USERNAME,
+    SEED_EMAIL_DOMAIN,
+    SEED_SERIAL_MARKER,
+    SEED_USER_PASSWORD,
 )
-
-
-def _demo_catalog_requests_already_seeded() -> bool:
-    """True if the bundled request rows were already inserted (avoid duplicates on restart)."""
-    sarah = db.session.scalar(
-        select(User).where(User.email == f"sarah.mitchell@{SEED_EMAIL_DOMAIN}"),
-    )
-    laptop = db.session.scalar(
-        select(Asset).where(Asset.serial_number == SEED_SERIAL_MARKER),
-    )
-    if sarah is None or laptop is None:
-        return False
-    existing = db.session.scalar(
-        select(AssetRequest.id)
-        .where(
-            AssetRequest.user_id == sarah.id,
-            AssetRequest.asset_id == laptop.id,
-            AssetRequest.status == RequestStatus.APPROVED,
-        )
-        .limit(1),
-    )
-    return existing is not None
-
-
-def _seed_overdue_and_requests(*, admin: User, today: date) -> None:
-    """Refresh overdue dates on known catalog rows; insert bundled requests once."""
-    users = db.session.scalars(
-        select(User).where(User.email.like(f"%@{SEED_EMAIL_DOMAIN}")),
-    ).all()
-    assets = db.session.scalars(
-        select(Asset).where(Asset.serial_number.in_(_DEMO_ASSET_SERIALS)),
-    ).all()
-    if not users or not assets:
-        return
-
-    by_username = {u.username: u for u in users}
-    by_serial = {a.serial_number: a for a in assets}
-
-    overdue_targets = {
-        "IT-LP-24-00891": today - timedelta(days=9),
-        "DELL-U3223QE-4KQ2N1": today - timedelta(days=5),
-    }
-    for serial, due_on in overdue_targets.items():
-        asset = by_serial.get(serial)
-        if asset is None:
-            continue
-        open_assignment = db.session.scalar(
-            select(Assignment)
-            .where(
-                Assignment.asset_id == asset.id,
-                Assignment.returned_date.is_(None),
-            )
-            .order_by(Assignment.assigned_date.desc(), Assignment.id.desc())
-            .limit(1),
-        )
-        if open_assignment is not None:
-            open_assignment.return_due_date = due_on
-
-    if _demo_catalog_requests_already_seeded():
-        return
-
-    req_specs: list[dict] = [
-        {
-            "username": "priya.sharma",
-            "asset_type": AssetType.MONITOR,
-            "status": RequestStatus.PENDING,
-            "requested_days_ago": 2,
-            "note": 'Need a second 27" display for contract review workspace.',
-        },
-        {
-            "username": "marcus.weber",
-            "asset_type": AssetType.WEBCAM,
-            "status": RequestStatus.PENDING,
-            "requested_days_ago": 1,
-            "note": "Remote onboarding interviews — dedicated webcam for interview room B.",
-        },
-        {
-            "username": "amelia.jones",
-            "asset_type": AssetType.MOUSE,
-            "status": RequestStatus.PENDING,
-            "requested_days_ago": 3,
-            "note": "Ergonomic vertical mouse for RSI accommodation (finance).",
-        },
-        {
-            "username": "liam.oconnor",
-            "asset_type": AssetType.LICENSE,
-            "status": RequestStatus.PENDING,
-            "requested_days_ago": 4,
-            "note": "Temporary Adobe CC seat for external counsel redlines (4 weeks).",
-        },
-        {
-            "username": "sarah.mitchell",
-            "asset_type": AssetType.LAPTOP,
-            "status": RequestStatus.APPROVED,
-            "requested_days_ago": 22,
-            "decision_days_ago": 21,
-            "asset_serial": "IT-LP-24-00891",
-            "note": "Standard finance analyst laptop — issued from corporate pool.",
-        },
-        {
-            "username": "david.nguyen",
-            "asset_type": AssetType.MONITOR,
-            "status": RequestStatus.APPROVED,
-            "requested_days_ago": 18,
-            "decision_days_ago": 17,
-            "asset_serial": "DELL-U3223QE-4KQ2N1",
-            "note": "Trading floor UHD monitor — approved and assigned to desk T-14.",
-        },
-        {
-            "username": "emily.carter",
-            "asset_type": AssetType.KEYBOARD,
-            "status": RequestStatus.APPROVED,
-            "requested_days_ago": 16,
-            "decision_days_ago": 15,
-            "asset_serial": "LOG-MXK-BKEY-00221",
-            "note": "Engineering hot-desk keyboard — approved and deployed.",
-        },
-        {
-            "username": "keiko.tanaka",
-            "asset_type": AssetType.LAPTOP,
-            "status": RequestStatus.REJECTED,
-            "requested_days_ago": 12,
-            "decision_days_ago": 11,
-            "note": "Second laptop request declined — existing device still within refresh policy.",
-        },
-        {
-            "username": "danielle.price",
-            "asset_type": AssetType.HEADPHONES,
-            "status": RequestStatus.REJECTED,
-            "requested_days_ago": 8,
-            "decision_days_ago": 7,
-            "note": "Duplicate headset request — spare stock already allocated to team.",
-        },
-        {
-            "username": "ryan.cooper",
-            "asset_type": AssetType.MICROPHONE,
-            "status": RequestStatus.REJECTED,
-            "requested_days_ago": 6,
-            "decision_days_ago": 5,
-            "note": "Podcast kit on hold — budget frozen until Q3 planning.",
-        },
-    ]
-
-    seeded_requests: list[AssetRequest] = []
-    for spec in req_specs:
-        requester = by_username.get(spec["username"])
-        if requester is None:
-            continue
-        decision_date = (
-            today - timedelta(days=spec["decision_days_ago"])
-            if "decision_days_ago" in spec
-            else None
-        )
-        asset_id = None
-        if "asset_serial" in spec:
-            selected = by_serial.get(spec["asset_serial"])
-            asset_id = selected.id if selected else None
-        seeded_requests.append(
-            AssetRequest(
-                user_id=requester.id,
-                asset_type=spec["asset_type"],
-                asset_id=asset_id,
-                status=spec["status"],
-                request_date=today - timedelta(days=spec["requested_days_ago"]),
-                decision_date=decision_date,
-                approved_by=(
-                    admin.id if spec["status"] != RequestStatus.PENDING else None
-                ),
-                note=f"{spec['note']}",
-            ),
-        )
-    if seeded_requests:
-        db.session.add_all(seeded_requests)
-
-
-def ensure_localdev_admin() -> None:
-    """
-    Fixed admin account for local testing.
-
-    Username localdev, email localdev@gmail.com, role admin.
-    Password: LOCALDEV_ADMIN_PASSWORD env var, or default LocalDev1!
-    """
-    password = os.environ.get("LOCALDEV_ADMIN_PASSWORD", "LocalDev1!")
-    pw_hash = hash_password(password)
-
-    other = db.session.scalar(
-        select(User).where(
-            User.email == LOCALDEV_EMAIL,
-            User.username != LOCALDEV_USERNAME,
-        ),
-    )
-    if other is not None:
-        return
-
-    user = db.session.scalar(select(User).filter_by(username=LOCALDEV_USERNAME))
-    if user is None:
-        db.session.add(
-            User(
-                username=LOCALDEV_USERNAME,
-                email=LOCALDEV_EMAIL,
-                password_hash=pw_hash,
-                role=Role.ADMIN,
-                department=Department.TECHNOLOGY,
-            ),
-        )
-    else:
-        user.email = LOCALDEV_EMAIL
-        user.role = Role.ADMIN
-        user.password_hash = pw_hash
-
-    db.session.commit()
+from app.seed.overdue_requests import seed_overdue_and_requests
 
 
 def ensure_demo_assets() -> None:
@@ -267,7 +29,7 @@ def ensure_demo_assets() -> None:
             select(User).filter_by(username=LOCALDEV_USERNAME)
         )
         if admin_existing is not None:
-            _seed_overdue_and_requests(admin=admin_existing, today=date.today())
+            seed_overdue_and_requests(admin=admin_existing, today=date.today())
             db.session.commit()
         return
 
@@ -377,7 +139,7 @@ def ensure_demo_assets() -> None:
             status=Status.ASSIGNED,
             purchase_date=date(2024, 3, 12),
             expiry_date=None,
-            notes="Corporate finance pool — primary analyst build.",
+            notes="Corporate finance pool â€” primary analyst build.",
         ),
         Asset(
             name="Lenovo ThinkPad P1 Gen 6 (RTX 4070)",
@@ -395,7 +157,7 @@ def ensure_demo_assets() -> None:
             status=Status.ASSIGNED,
             purchase_date=date(2023, 11, 5),
             expiry_date=None,
-            notes="STS trading floor — desk cluster T-14.",
+            notes="STS trading floor â€” desk cluster T-14.",
         ),
         Asset(
             name='Dell Pro 27" P2723DE',
@@ -404,7 +166,7 @@ def ensure_demo_assets() -> None:
             status=Status.ASSIGNED,
             purchase_date=date(2024, 1, 18),
             expiry_date=None,
-            notes="STS operations — second screen for shift lead.",
+            notes="STS operations â€” second screen for shift lead.",
         ),
         Asset(
             name="Logitech MX Keys S (Graphite)",
@@ -413,7 +175,7 @@ def ensure_demo_assets() -> None:
             status=Status.ASSIGNED,
             purchase_date=date(2024, 5, 9),
             expiry_date=None,
-            notes="Technology hot-dock — paired with TB4 dock 7.",
+            notes="Technology hot-dock â€” paired with TB4 dock 7.",
         ),
         Asset(
             name='Apple MacBook Air 13" (M2, returned)',
@@ -431,7 +193,7 @@ def ensure_demo_assets() -> None:
             status=Status.AVAILABLE,
             purchase_date=date(2024, 9, 1),
             expiry_date=None,
-            notes="Spare pool — Legal / exec loaner.",
+            notes="Spare pool â€” Legal / exec loaner.",
         ),
         Asset(
             name='Dell UltraSharp U2424H (24")',
@@ -440,7 +202,7 @@ def ensure_demo_assets() -> None:
             status=Status.AVAILABLE,
             purchase_date=date(2024, 4, 22),
             expiry_date=None,
-            notes="Unboxed spare — Customer & Products marketing.",
+            notes="Unboxed spare â€” Customer & Products marketing.",
         ),
         Asset(
             name="Logitech MX Master 3S (Pale Grey)",
@@ -449,7 +211,7 @@ def ensure_demo_assets() -> None:
             status=Status.AVAILABLE,
             purchase_date=date(2024, 3, 14),
             expiry_date=None,
-            notes="Spares cupboard — Technology.",
+            notes="Spares cupboard â€” Technology.",
         ),
         Asset(
             name="Logitech MX Anywhere 3S",
@@ -458,7 +220,7 @@ def ensure_demo_assets() -> None:
             status=Status.AVAILABLE,
             purchase_date=date(2024, 7, 30),
             expiry_date=None,
-            notes="Travel kit stock — Finance.",
+            notes="Travel kit stock â€” Finance.",
         ),
         Asset(
             name="Jabra Evolve2 75 UC (Stereo)",
@@ -467,7 +229,7 @@ def ensure_demo_assets() -> None:
             status=Status.AVAILABLE,
             purchase_date=date(2023, 10, 2),
             expiry_date=None,
-            notes="Returned from contractor — inspected, ready to reissue.",
+            notes="Returned from contractor â€” inspected, ready to reissue.",
         ),
         Asset(
             name="Poly Studio P15 (Personal video bar)",
@@ -476,7 +238,7 @@ def ensure_demo_assets() -> None:
             status=Status.AVAILABLE,
             purchase_date=date(2024, 2, 27),
             expiry_date=None,
-            notes="Legal videoconference kit — unassigned.",
+            notes="Legal videoconference kit â€” unassigned.",
         ),
         Asset(
             name="Elgato Facecam Pro",
@@ -494,7 +256,7 @@ def ensure_demo_assets() -> None:
             status=Status.UNDER_MAINTENANCE,
             purchase_date=date(2022, 12, 4),
             expiry_date=None,
-            notes="USB-C intermittent — with vendor RMA.",
+            notes="USB-C intermittent â€” with vendor RMA.",
         ),
         Asset(
             name="Microsoft 365 E5 (per-user subscription)",
@@ -503,7 +265,7 @@ def ensure_demo_assets() -> None:
             status=Status.AVAILABLE,
             purchase_date=date(2024, 1, 1),
             expiry_date=date(today.year + 1, 12, 31),
-            notes="Unassigned seat — provision during onboarding.",
+            notes="Unassigned seat â€” provision during onboarding.",
         ),
         Asset(
             name="Adobe Creative Cloud (named user, annual)",
@@ -512,7 +274,7 @@ def ensure_demo_assets() -> None:
             status=Status.AVAILABLE,
             purchase_date=date(2025, 1, 15),
             expiry_date=date(today.year, 12, 31),
-            notes="Marketing shared licence — not yet assigned.",
+            notes="Marketing shared licence â€” not yet assigned.",
         ),
         Asset(
             name='Dell Pro 24" P2422H (EOL)',
@@ -521,7 +283,7 @@ def ensure_demo_assets() -> None:
             status=Status.RETIRED,
             purchase_date=date(2018, 5, 4),
             expiry_date=None,
-            notes="Retired — kept for parts only.",
+            notes="Retired â€” kept for parts only.",
         ),
         Asset(
             name="Keychron Q6 Pro (100%, tactile)",
@@ -530,7 +292,7 @@ def ensure_demo_assets() -> None:
             status=Status.AVAILABLE,
             purchase_date=date(2024, 10, 8),
             expiry_date=None,
-            notes="HR ergonomics trial — surplus after pilot.",
+            notes="HR ergonomics trial â€” surplus after pilot.",
         ),
     ]
 
@@ -592,7 +354,7 @@ def ensure_demo_assets() -> None:
     ]
     db.session.add_all(assignments)
 
-    _seed_overdue_and_requests(admin=admin, today=today)
+    seed_overdue_and_requests(admin=admin, today=today)
 
     base = datetime.now(timezone.utc) - timedelta(days=55)
     logs: list[AuditLog] = []

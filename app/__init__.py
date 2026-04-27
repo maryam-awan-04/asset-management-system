@@ -52,11 +52,11 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     from app import models as _models  # noqa: F401
     from app.routes import assets as assets_routes
     from app.routes import auth as auth_routes
-    from app.routes import main as main_routes
     from app.routes import users as users_routes
+    from app.routes.main import bp as main_bp
 
     app.register_blueprint(auth_routes.bp)
-    app.register_blueprint(main_routes.bp)
+    app.register_blueprint(main_bp)
     app.register_blueprint(assets_routes.bp)
     app.register_blueprint(users_routes.bp)
 

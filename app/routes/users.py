@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-from enum import Enum
-from typing import TypeVar
-
 from flask import (
     Blueprint,
     flash,
@@ -18,29 +15,16 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 
 from app.access import admin_required
+from app.audit import record_audit
 from app.enums import AuditAction, Department, Role
 from app.extensions import db
 from app.forms.admin_user import AdminUserEditForm
 from app.forms.empty import EmptyForm
-from app.models import Assignment, AuditLog, User
+from app.models import Assignment, User
+from app.util_enum import parse_enum_query_value
+from app.util_search import ilike_fragment_from_query
 
 bp = Blueprint("users", __name__, url_prefix="/users")
-
-E = TypeVar("E", bound=Enum)
-
-
-def _enum_by_name(enum_cls: type[E], raw: str) -> E | None:
-    key = raw.strip()
-    if not key:
-        return None
-    try:
-        return enum_cls[key.upper()]
-    except KeyError:
-        return None
-
-
-def _audit(actor_id: int | None, action: AuditAction, details: str | None) -> None:
-    db.session.add(AuditLog(user_id=actor_id, action=action, details=details))
 
 
 def _snapshot_user(member: User) -> dict:
@@ -85,8 +69,8 @@ def _filtered_users_bundle(
 
     q_stripped = (q_raw or "").strip()
 
-    dept_member = _enum_by_name(Department, raw_dept)
-    role_member = _enum_by_name(Role, raw_role)
+    dept_member = parse_enum_query_value(Department, raw_dept)
+    role_member = parse_enum_query_value(Role, raw_role)
 
     dept_key = dept_member.name if dept_member is not None else ""
     role_key = role_member.name if role_member is not None else ""
@@ -96,11 +80,9 @@ def _filtered_users_bundle(
     if role_member is not None:
         stmt = stmt.where(User.role == role_member)
 
-    if q_stripped:
-        q_safe = q_stripped[:80].replace("%", "").replace("_", "")
-        if q_safe:
-            pattern = f"%{q_safe}%"
-            stmt = stmt.where(User.username.ilike(pattern))
+    q_safe = ilike_fragment_from_query(q_stripped)
+    if q_safe is not None:
+        stmt = stmt.where(User.username.ilike(f"%{q_safe}%"))
 
     stmt = stmt.order_by(User.id.asc())
     users = db.session.scalars(stmt).all()
@@ -211,7 +193,7 @@ def edit_user(user_id: int):
                 return render_template("users/edit.html", form=form, member=member)
 
         before = _snapshot_user(member)
-        member.username = form.username.data.strip()
+        member.username = form.username.data
         member.role = form.role.data
         member.department = form.department.data
         try:
@@ -221,7 +203,7 @@ def edit_user(user_id: int):
             flash("Could not save. That username may already be in use.", "danger")
             return render_template("users/edit.html", form=form, member=member)
 
-        _audit(
+        record_audit(
             current_user.id,
             AuditAction.USER_UPDATED,
             _build_user_update_audit_details(before, member),
@@ -279,7 +261,7 @@ def delete_user(user_id: int):
 
     label = f"{member.username} ({member.email})"
     db.session.delete(member)
-    _audit(current_user.id, AuditAction.USER_DELETED, label)
+    record_audit(current_user.id, AuditAction.USER_DELETED, label)
     db.session.commit()
     flash(f"Deleted user {label}.", "info")
     return redirect(url_for("users.list_users"))

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import date
 from enum import Enum
-from typing import TypeVar
 
 from flask import (
     Blueprint,
@@ -20,29 +19,16 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 
 from app.access import admin_required
+from app.audit import record_audit
 from app.enums import AssetType, AuditAction, Status
 from app.extensions import db
 from app.forms.asset import AssetCreateForm, AssetEditForm
 from app.forms.empty import EmptyForm
 from app.models import Asset, Assignment, AuditLog, User
+from app.util_enum import parse_enum_query_value
+from app.util_search import ilike_fragment_from_query
 
 bp = Blueprint("assets", __name__, url_prefix="/assets")
-
-E = TypeVar("E", bound=Enum)
-
-
-def _enum_by_name(enum_cls: type[E], raw: str) -> E | None:
-    key = raw.strip()
-    if not key:
-        return None
-    try:
-        return enum_cls[key.upper()]
-    except KeyError:
-        return None
-
-
-def _audit(user_id: int | None, action: AuditAction, details: str | None) -> None:
-    db.session.add(AuditLog(user_id=user_id, action=action, details=details))
 
 
 def _active_open_assignment(asset: Asset) -> Assignment | None:
@@ -138,11 +124,8 @@ def _build_asset_update_audit_details(before: dict, asset: Asset) -> str:
 @bp.get("/assignable-users")
 @admin_required
 def search_assignable_users():
-    q = (request.args.get("q") or "").strip()
-    if len(q) < 1:
-        return jsonify([])
-    q = q[:80].replace("%", "").replace("_", "")
-    if not q:
+    q = ilike_fragment_from_query(request.args.get("q"))
+    if q is None:
         return jsonify([])
     pattern = f"%{q}%"
     users = db.session.scalars(
@@ -178,8 +161,8 @@ def list_assets():
     raw_status = request.args.get("status", "")
     raw_overdue = (request.args.get("overdue") or "").strip().lower()
 
-    type_member = _enum_by_name(AssetType, raw_type)
-    status_member = _enum_by_name(Status, raw_status)
+    type_member = parse_enum_query_value(AssetType, raw_type)
+    status_member = parse_enum_query_value(Status, raw_status)
     filter_overdue = raw_overdue in {"1", "true", "yes", "on"}
 
     type_key = type_member.name if type_member is not None else ""
@@ -283,13 +266,13 @@ def new_asset():
     form = AssetCreateForm()
     if form.validate_on_submit():
         asset = Asset(
-            name=form.name.data.strip(),
-            serial_number=form.serial_number.data.strip(),
+            name=form.name.data,
+            serial_number=form.serial_number.data,
             asset_type=form.asset_type.data,
             status=form.status.data,
             purchase_date=form.purchase_date.data,
             expiry_date=form.expiry_date.data,
-            notes=(form.notes.data or "").strip() or None,
+            notes=form.notes.data or None,
         )
         db.session.add(asset)
         try:
@@ -301,7 +284,7 @@ def new_asset():
                 "danger",
             )
             return render_template("assets/new.html", form=form)
-        _audit(
+        record_audit(
             current_user.id,
             AuditAction.ASSET_CREATED,
             f"{asset.serial_number}: {asset.name} | created as "
@@ -371,13 +354,13 @@ def edit_asset(asset_id: int):
         due_back = form.assignment_return_due.data
 
         before = _snapshot_asset(asset)
-        asset.name = form.name.data.strip()
-        asset.serial_number = form.serial_number.data.strip()
+        asset.name = form.name.data
+        asset.serial_number = form.serial_number.data
         asset.asset_type = form.asset_type.data
         asset.status = form.status.data
         asset.purchase_date = form.purchase_date.data
         asset.expiry_date = form.expiry_date.data
-        asset.notes = (form.notes.data or "").strip() or None
+        asset.notes = form.notes.data or None
         try:
             db.session.flush()
         except IntegrityError:
@@ -418,7 +401,7 @@ def edit_asset(asset_id: int):
                 assignee = db.session.get(User, assign_uid)
                 assignee_name = assignee.username if assignee else "unknown user"
                 due_note = f"; return date {due_back.isoformat()}" if due_back else ""
-                _audit(
+                record_audit(
                     current_user.id,
                     AuditAction.ASSET_ASSIGNED,
                     f"{asset.serial_number}: {asset.name} | assigned to "
@@ -429,7 +412,7 @@ def edit_asset(asset_id: int):
                 if open_row is not None and open_row.user_id == assign_uid:
                     open_row.return_due_date = due_back
 
-        _audit(
+        record_audit(
             current_user.id,
             AuditAction.ASSET_UPDATED,
             _build_asset_update_audit_details(before, asset),
@@ -471,7 +454,7 @@ def delete_asset(asset_id: int):
 
     label = f"{asset.name} ({asset.serial_number})"
     db.session.delete(asset)
-    _audit(current_user.id, AuditAction.ASSET_DELETED, label)
+    record_audit(current_user.id, AuditAction.ASSET_DELETED, label)
     db.session.commit()
     flash(f"Deleted asset {label}.", "info")
     return redirect(url_for("assets.list_assets"))

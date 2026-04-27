@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from flask_wtf import FlaskForm
 from sqlalchemy import select
 from wtforms import Field, SelectField, StringField, SubmitField
 from wtforms.validators import DataRequired, Length, ValidationError
 
 from app.enums import Department, Role
 from app.extensions import db
+from app.forms.base import StripWhitespaceForm
 from app.models import User
 
 
@@ -36,7 +36,7 @@ def _format_department(key: str | None) -> Department | None:
         raise ValidationError("Invalid department.") from exc
 
 
-class AdminUserEditForm(FlaskForm):
+class AdminUserEditForm(StripWhitespaceForm):
     username = StringField(
         "Username",
         validators=[

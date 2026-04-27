@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import date
 
-from flask_wtf import FlaskForm
 from sqlalchemy import func, select
 from wtforms import (
     DateField,
@@ -17,7 +16,10 @@ from wtforms.validators import DataRequired, Length, Optional, ValidationError
 
 from app.enums import AssetType, Status
 from app.extensions import db
+from app.forms.base import StripWhitespaceForm
 from app.models import Asset, Assignment, User
+
+ASSET_NOTES_MAX_LEN = 4000
 
 
 def _asset_type_choices() -> list[tuple[str, str]]:
@@ -52,7 +54,7 @@ def _status_choices_for_create() -> list[tuple[str, str]]:
     return [(s.name, s.value) for s in Status if s not in skip]
 
 
-class AssetCreateForm(FlaskForm):
+class AssetCreateForm(StripWhitespaceForm):
     name = StringField(
         "Name",
         validators=[

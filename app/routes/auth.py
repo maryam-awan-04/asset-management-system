@@ -4,10 +4,11 @@ from flask import Blueprint, flash, redirect, render_template, request, session,
 from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy import or_, select
 
+from app.audit import record_audit
 from app.enums import AuditAction, Role
 from app.extensions import db, limiter
 from app.forms.auth import LoginForm, RegistrationForm
-from app.models import AuditLog, User
+from app.models import User
 from app.passwords import hash_password, passwords_match
 
 
@@ -20,14 +21,6 @@ def _home_url_for_role(role: Role) -> str:
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 
-def _audit(
-    user_id: int | None, action: AuditAction, details: str | None = None
-) -> None:
-    db.session.add(
-        AuditLog(user_id=user_id, action=action, details=details),
-    )
-
-
 @bp.route("/login", methods=["GET", "POST"])
 @limiter.limit("12/minute", methods=["POST"])
 def login():
@@ -36,7 +29,7 @@ def login():
 
     form = LoginForm()
     if form.validate_on_submit():
-        username = form.username.data.strip()
+        username = form.username.data
         user = db.session.scalar(select(User).filter_by(username=username))
 
         if not user or not passwords_match(user.password_hash, form.password.data):
@@ -44,14 +37,14 @@ def login():
                 "Invalid username or password.",
                 "danger",
             )
-            _audit(None, AuditAction.LOGIN_FAILED, None)
+            record_audit(None, AuditAction.LOGIN_FAILED, None)
             db.session.commit()
             return render_template("auth/login.html", form=form)
 
         session.permanent = True
         login_user(user, remember=form.remember_me.data)
         flash("You are signed in.", "success")
-        _audit(user.id, AuditAction.LOGIN_SUCCESS, None)
+        record_audit(user.id, AuditAction.LOGIN_SUCCESS, None)
         db.session.commit()
 
         next_url = request.args.get("next")
@@ -70,11 +63,11 @@ def register():
 
     form = RegistrationForm()
     if form.validate_on_submit():
-        email_norm = form.email.data.strip().lower()
+        email_norm = form.email.data.lower()
         exists = db.session.scalar(
             select(User).where(
                 or_(
-                    User.username == form.username.data.strip(),
+                    User.username == form.username.data,
                     User.email == email_norm,
                 ),
             ),
@@ -87,7 +80,7 @@ def register():
             return render_template("auth/register.html", form=form)
 
         user = User(
-            username=form.username.data.strip(),
+            username=form.username.data,
             email=email_norm,
             password_hash=hash_password(form.password.data),
             role=Role.USER,
@@ -95,7 +88,7 @@ def register():
         )
         db.session.add(user)
         db.session.flush()
-        _audit(user.id, AuditAction.USER_CREATED, "Self-registration")
+        record_audit(user.id, AuditAction.USER_CREATED, "Self-registration")
         db.session.commit()
 
         flash("Your account has been created. Please sign in.", "success")
@@ -110,7 +103,7 @@ def logout():
     uid = current_user.id
     uname = current_user.username
     logout_user()
-    _audit(
+    record_audit(
         uid,
         AuditAction.LOGOUT,
         f"username={uname}",

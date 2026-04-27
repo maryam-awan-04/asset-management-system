@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from flask_wtf import FlaskForm
 from wtforms import SelectField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Length, ValidationError
 
 from app.enums import AssetType
+from app.forms.base import StripWhitespaceForm
 
 
 def _asset_type_choices() -> list[tuple[str, str]]:
@@ -20,7 +20,7 @@ def _format_asset_type(key: str | None) -> AssetType | None:
         raise ValidationError("Invalid asset type.") from exc
 
 
-class AssetRequestCreateForm(FlaskForm):
+class AssetRequestCreateForm(StripWhitespaceForm):
     asset_type = SelectField(
         "Asset type",
         choices=[],
@@ -49,7 +49,7 @@ class AssetRequestCreateForm(FlaskForm):
         self.asset_type.choices = _asset_type_choices()
 
 
-class AssetRequestEditNoteForm(FlaskForm):
+class AssetRequestEditNoteForm(StripWhitespaceForm):
     note = TextAreaField(
         "Note",
         validators=[

@@ -2,19 +2,19 @@ from __future__ import annotations
 
 import re
 
-from flask_wtf import FlaskForm
 from wtforms import BooleanField, PasswordField, SelectField, StringField, SubmitField
 from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError
 
 from app.enums import Department
+from app.forms.base import StripWhitespaceForm
 
 
-def _password_has_digit(form: FlaskForm, field: PasswordField) -> None:
+def _password_has_digit(form: StripWhitespaceForm, field: PasswordField) -> None:
     if field.data and not re.search(r"\d", field.data):
         raise ValidationError("Password must contain at least one number.")
 
 
-def _password_has_symbol(form: FlaskForm, field: PasswordField) -> None:
+def _password_has_symbol(form: StripWhitespaceForm, field: PasswordField) -> None:
     if field.data and not re.search(r"[^\w\s]", field.data):
         raise ValidationError(
             "Password must contain at least one symbol (e.g. !, @, #, $)."
@@ -34,7 +34,7 @@ def _format_department(key: str | None) -> Department | None:
         raise ValidationError("Invalid department.") from exc
 
 
-class LoginForm(FlaskForm):
+class LoginForm(StripWhitespaceForm):
     username = StringField(
         "Username",
         validators=[DataRequired(message="Username is required."), Length(max=80)],
@@ -50,7 +50,7 @@ class LoginForm(FlaskForm):
     submit = SubmitField("Sign in")
 
 
-class RegistrationForm(FlaskForm):
+class RegistrationForm(StripWhitespaceForm):
     username = StringField(
         "Username",
         validators=[

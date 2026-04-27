@@ -6,13 +6,11 @@ A Flask web app for tracking hardware and software assets, assignments, and user
 
 ## Contents
 
-### [Developer Guide](#developer-guide)
-### [Admin Guide](#admin-guide)
-### [User Guide](#user-guide)
+[Developer Guide](#developer-guide) · [Admin Guide](#admin-guide) · [User Guide](#user-guide)
 
 # Developer Guide
 
-[App Features](#app-features) ~ [Quick start](#quick-start) ~ [Configuration and Environment](#configuration--environment) ~ [SQLite Database and Demo Data](#sqlite-database) ~ [URLs](#urls) ~ [Project Layout](#project-layout) ~ [Testing](#testing)
+[App Features](#app-features) ~ [Quick start](#quick-start) ~ [Configuration and Environment](#configuration-environment) ~ [SQLite Database](#sqlite-database) ~ [Demo data and local admin](#demo-data-and-local-admin-account) ~ [URLs](#urls) ~ [Project Layout](#project-layout) ~ [Testing](#testing)
 
 ## App Features
 
@@ -87,7 +85,7 @@ LOCALDEV_ADMIN_PASSWORD=YourSecurePassword1!
 When `DEBUG` is true (`FLASK_CONFIG=development`):
 
 - `ensure_localdev_admin()` — Ensures user `localdev` exists with email `localdev@gmail.com`, role Admin, password from `LOCALDEV_ADMIN_PASSWORD` or a documented default.
-- `ensure_demo_assets()` — Seeds sample users, assets, assignments, and requests if the catalog marker is absent (see `app/seed.py`).
+- `ensure_demo_assets()` — Seeds sample users, assets, assignments, and requests if the catalog marker is absent (orchestrated from the `app/seed/` package).
 
 ---
 
@@ -112,14 +110,21 @@ app/
   extensions.py     # db, login_manager, csrf, limiter
   models.py         # User, Asset, Assignment, AssetRequest, AuditLog
   passwords.py      # bcrypt hash / verify
-  seed.py           # Demo catalog
+  audit.py          # record_audit helper
+  util_enum.py      # util for URL filters
+  util_search.py    # util for search
   access.py         # @admin_required, @standard_user_required
   forms/            # WTForms
   routes/
     auth.py         # Login, register, logout + audits + rate limits
-    main.py         # Dashboard, admin requests, user CRUD
+    main/           # Dashboard, admin requests, user CRUD
+      __init__.py   # Exports blueprint; loads route modules
+      ...
     assets.py       # Admin asset CRUD
     users.py        # Admin user CRUD
+  seed/             # DEBUG-only demo data
+    __init__.py
+    ...
   static/css/
   templates/        # Jinja2
 run.py              # load_dotenv + create_app + app.run
