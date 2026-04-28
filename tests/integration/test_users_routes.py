@@ -12,15 +12,8 @@ from sqlalchemy.exc import IntegrityError
 from app.enums import AssetType, AuditAction, Department, Role, Status
 from app.extensions import db
 from app.models import Asset, Assignment, AuditLog, User
-from app.passwords import hash_password
-
-
-def _login(client, *, username: str, password: str) -> None:
-    client.post(
-        "/auth/login",
-        data={"username": username, "password": password},
-        follow_redirects=False,
-    )
+from app.seed.constants import PYTEST_FIXTURE_PASSWORD
+from tests.conftest import cached_hash_password, login_as
 
 
 def _make_user_db(
@@ -33,7 +26,7 @@ def _make_user_db(
     u = User(
         username=username,
         email=email,
-        password_hash=hash_password("Valid1!Password"),
+        password_hash=cached_hash_password(PYTEST_FIXTURE_PASSWORD),
         role=role,
         department=department,
     )
@@ -49,33 +42,21 @@ def test_users_list_requires_login(client):
 
 
 def test_users_list_denies_non_admin(client, credentials_user):
-    _login(
-        client,
-        username=credentials_user["username"],
-        password=credentials_user["password"],
-    )
+    login_as(client, credentials_user)
     rv = client.get("/users/", follow_redirects=False)
     assert rv.status_code == 302
     assert "/my-assets" in rv.headers["Location"]
 
 
 def test_users_list_admin_ok_cache(client, credentials_admin):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     rv = client.get("/users/", follow_redirects=False)
     assert rv.status_code == 200
     assert "private, no-store" in rv.headers["Cache-Control"]
 
 
 def test_users_list_filters_and_list_results(app, client, credentials_admin):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     with app.app_context():
         _make_user_db(
             username="filter_fin",
@@ -100,11 +81,7 @@ def test_users_list_filters_and_list_results(app, client, credentials_admin):
 
 
 def test_view_user_assets_missing_redirects(client, credentials_admin):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     rv = client.get("/users/999999/assets", follow_redirects=False)
     assert rv.status_code == 302
     assert "/users/" in rv.headers["Location"]
@@ -113,11 +90,7 @@ def test_view_user_assets_missing_redirects(client, credentials_admin):
 def test_view_user_assets_splits_current_and_past(
     app, client, credentials_admin, credentials_user
 ):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     with app.app_context():
         uid = db.session.scalar(select(User.id).where(User.username == "alice"))
         assert uid is not None
@@ -169,22 +142,14 @@ def test_view_user_assets_splits_current_and_past(
 
 
 def test_edit_user_missing_redirects(client, credentials_admin):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     rv = client.get("/users/888888/edit", follow_redirects=False)
     assert rv.status_code == 302
     assert "/users/" in rv.headers["Location"]
 
 
 def test_edit_user_updates_and_writes_audit(app, client, credentials_admin):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     with app.app_context():
         uid = _make_user_db(
             username="editme",
@@ -220,11 +185,7 @@ def test_edit_user_updates_and_writes_audit(app, client, credentials_admin):
 
 
 def test_edit_user_sole_admin_cannot_demote_self(app, client, credentials_admin):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     with app.app_context():
         uid = db.session.scalar(
             select(User.id).where(User.username == "adminbob"),
@@ -245,11 +206,7 @@ def test_edit_user_sole_admin_cannot_demote_self(app, client, credentials_admin)
 
 
 def test_edit_user_integrity_error_flash(app, client, credentials_admin):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     with app.app_context():
         uid = _make_user_db(username="flushme", email="flushme@example.com")
 
@@ -273,11 +230,7 @@ def test_edit_user_integrity_error_flash(app, client, credentials_admin):
 def test_edit_user_validation_error_renders_edit_template(
     app, client, credentials_admin
 ):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     with app.app_context():
         uid = _make_user_db(username="validlen", email="vl@example.com")
 
@@ -294,11 +247,7 @@ def test_edit_user_validation_error_renders_edit_template(
 
 
 def test_delete_user_invalid_form_redirects(client, credentials_admin):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     fake_form = MagicMock()
     fake_form.validate_on_submit.return_value = False
     with mock.patch("app.routes.users.EmptyForm", return_value=fake_form):
@@ -308,22 +257,14 @@ def test_delete_user_invalid_form_redirects(client, credentials_admin):
 
 
 def test_delete_user_missing_redirects(client, credentials_admin):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     rv = client.post("/users/999999/delete", data={}, follow_redirects=False)
     assert rv.status_code == 302
     assert "/users/" in rv.headers["Location"]
 
 
 def test_delete_user_cannot_delete_self_blocks(app, client, credentials_admin):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     with app.app_context():
         uid = db.session.scalar(select(User.id).where(User.username == "adminbob"))
 
@@ -337,11 +278,7 @@ def test_delete_user_cannot_delete_self_blocks(app, client, credentials_admin):
 def test_delete_user_blocked_with_open_assignment(
     app, client, credentials_admin, credentials_user
 ):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     with app.app_context():
         uid = db.session.scalar(select(User.id).where(User.username == "alice"))
         asset = Asset(
@@ -373,11 +310,7 @@ def test_delete_user_blocked_with_open_assignment(
 
 
 def test_delete_user_blocked_only_administrator(app, client, credentials_admin):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     with app.app_context():
         other_id = _make_user_db(
             username="otheradm",
@@ -403,11 +336,7 @@ def test_delete_user_blocked_only_administrator(app, client, credentials_admin):
 
 
 def test_delete_user_success_regular_user(app, client, credentials_admin):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     with app.app_context():
         uid = _make_user_db(username="todelete", email="td@example.com")
 
@@ -421,11 +350,7 @@ def test_delete_user_success_regular_user(app, client, credentials_admin):
 def test_delete_second_admin_allowed_when_multiple_admins_exist(
     app, client, credentials_admin
 ):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     with app.app_context():
         extra_id = _make_user_db(
             username="extraadm",

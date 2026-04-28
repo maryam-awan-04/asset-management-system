@@ -11,14 +11,7 @@ from sqlalchemy import select
 from app.enums import AssetType, AuditAction, RequestStatus, Status
 from app.extensions import db
 from app.models import Asset, AssetRequest, Assignment, AuditLog, User
-
-
-def _login(client, *, username: str, password: str) -> None:
-    client.post(
-        "/auth/login",
-        data={"username": username, "password": password},
-        follow_redirects=False,
-    )
+from tests.conftest import login_as
 
 
 def test_index_redirects_to_login(client):
@@ -34,21 +27,13 @@ def test_health_returns_json(client):
 
 
 def test_dashboard_admin_ok(client, credentials_admin):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     rv = client.get("/dashboard", follow_redirects=False)
     assert rv.status_code == 200
 
 
 def test_dashboard_standard_user_redirects_to_my_assets(client, credentials_user):
-    _login(
-        client,
-        username=credentials_user["username"],
-        password=credentials_user["password"],
-    )
+    login_as(client, credentials_user)
     rv = client.get("/dashboard", follow_redirects=False)
     assert rv.status_code == 302
     assert "/my-assets" in rv.headers["Location"]
@@ -60,22 +45,14 @@ def test_admin_requests_requires_login(client):
 
 
 def test_admin_requests_denies_standard_user(client, credentials_user):
-    _login(
-        client,
-        username=credentials_user["username"],
-        password=credentials_user["password"],
-    )
+    login_as(client, credentials_user)
     rv = client.get("/admin/requests", follow_redirects=False)
     assert rv.status_code == 302
     assert "/my-assets" in rv.headers["Location"]
 
 
 def test_admin_requests_list_filters(client, app, credentials_admin, credentials_user):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     with app.app_context():
         alice = db.session.scalar(select(User).where(User.username == "alice"))
         assert alice is not None
@@ -97,11 +74,7 @@ def test_admin_requests_list_filters(client, app, credentials_admin, credentials
 
 
 def test_admin_review_missing_redirects(client, credentials_admin):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     rv = client.get("/admin/requests/999999", follow_redirects=False)
     assert rv.status_code == 302
     assert "/admin/requests" in rv.headers["Location"]
@@ -136,11 +109,7 @@ def _seed_laptop_request_and_asset(app):
 def test_admin_review_approve_assigns_and_audits(
     app, client, credentials_admin, credentials_user
 ):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     rid, aid = _seed_laptop_request_and_asset(app)
 
     rv = client.post(
@@ -172,11 +141,7 @@ def test_admin_review_approve_assigns_and_audits(
 
 
 def test_admin_review_reject(app, client, credentials_admin, credentials_user):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     rid, _ = _seed_laptop_request_and_asset(app)
 
     rv = client.post(
@@ -194,11 +159,7 @@ def test_admin_review_reject(app, client, credentials_admin, credentials_user):
 def test_admin_review_non_pending_redirects(
     app, client, credentials_admin, credentials_user
 ):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     with app.app_context():
         alice = db.session.scalar(select(User).where(User.username == "alice"))
         assert alice is not None
@@ -224,11 +185,7 @@ def test_admin_review_non_pending_redirects(
 def test_admin_review_approve_notes_too_long(
     app, client, credentials_admin, credentials_user
 ):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     rid, aid = _seed_laptop_request_and_asset(app)
 
     rv = client.post(
@@ -246,11 +203,7 @@ def test_admin_review_approve_notes_too_long(
 def test_admin_review_approve_invalid_return_due(
     app, client, credentials_admin, credentials_user
 ):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     rid, aid = _seed_laptop_request_and_asset(app)
 
     rv = client.post(
@@ -269,11 +222,7 @@ def test_admin_review_approve_invalid_return_due(
 def test_admin_review_approve_return_due_before_today(
     app, client, credentials_admin, credentials_user
 ):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     rid, aid = _seed_laptop_request_and_asset(app)
     past = date.today() - timedelta(days=3)
 
@@ -293,11 +242,7 @@ def test_admin_review_approve_return_due_before_today(
 def test_admin_review_approve_no_asset_selected(
     app, client, credentials_admin, credentials_user
 ):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     rid, _ = _seed_laptop_request_and_asset(app)
 
     rv = client.post(
@@ -315,11 +260,7 @@ def test_admin_review_approve_no_asset_selected(
 def test_admin_review_approve_wrong_asset_type_redirects(
     app, client, credentials_admin, credentials_user
 ):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     rid, _ = _seed_laptop_request_and_asset(app)
     with app.app_context():
         other = Asset(
@@ -354,11 +295,7 @@ def test_admin_review_approve_wrong_asset_type_redirects(
 def test_admin_review_invalid_action_redirects(
     app, client, credentials_admin, credentials_user
 ):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     rid, aid = _seed_laptop_request_and_asset(app)
 
     rv = client.post(
@@ -378,22 +315,14 @@ def test_my_assets_requires_login(client):
 
 
 def test_my_assets_admin_redirected(client, credentials_admin):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     rv = client.get("/my-assets", follow_redirects=False)
     assert rv.status_code == 302
     assert "/dashboard" in rv.headers["Location"]
 
 
 def test_request_asset_and_list(app, client, credentials_user):
-    _login(
-        client,
-        username=credentials_user["username"],
-        password=credentials_user["password"],
-    )
+    login_as(client, credentials_user)
     rv = client.post(
         "/my-assets/request",
         data={
@@ -411,21 +340,13 @@ def test_request_asset_and_list(app, client, credentials_user):
 
 
 def test_my_assets_history_ok(client, credentials_user):
-    _login(
-        client,
-        username=credentials_user["username"],
-        password=credentials_user["password"],
-    )
+    login_as(client, credentials_user)
     rv = client.get("/my-assets/history", follow_redirects=False)
     assert rv.status_code == 200
 
 
 def test_edit_my_request_updates_note(app, client, credentials_user):
-    _login(
-        client,
-        username=credentials_user["username"],
-        password=credentials_user["password"],
-    )
+    login_as(client, credentials_user)
     with app.app_context():
         uid = db.session.scalar(select(User.id).where(User.username == "alice"))
         ar = AssetRequest(
@@ -452,11 +373,7 @@ def test_edit_my_request_updates_note(app, client, credentials_user):
 
 
 def test_delete_my_request_success(app, client, credentials_user):
-    _login(
-        client,
-        username=credentials_user["username"],
-        password=credentials_user["password"],
-    )
+    login_as(client, credentials_user)
     with app.app_context():
         uid = db.session.scalar(select(User.id).where(User.username == "alice"))
         ar = AssetRequest(
@@ -480,11 +397,7 @@ def test_delete_my_request_success(app, client, credentials_user):
 
 
 def test_delete_my_request_invalid_csrf(client, credentials_user):
-    _login(
-        client,
-        username=credentials_user["username"],
-        password=credentials_user["password"],
-    )
+    login_as(client, credentials_user)
     fake_form = MagicMock()
     fake_form.validate_on_submit.return_value = False
     with mock.patch("app.routes.main.user_portal.EmptyForm", return_value=fake_form):
@@ -495,11 +408,7 @@ def test_delete_my_request_invalid_csrf(client, credentials_user):
 
 
 def test_return_my_asset_success(app, client, credentials_user):
-    _login(
-        client,
-        username=credentials_user["username"],
-        password=credentials_user["password"],
-    )
+    login_as(client, credentials_user)
     with app.app_context():
         uid = db.session.scalar(select(User.id).where(User.username == "alice"))
         asset = Asset(
@@ -533,10 +442,6 @@ def test_return_my_asset_success(app, client, credentials_user):
 
 
 def test_return_my_asset_no_assignment_flash(client, credentials_user):
-    _login(
-        client,
-        username=credentials_user["username"],
-        password=credentials_user["password"],
-    )
+    login_as(client, credentials_user)
     rv = client.post("/my-assets/999999/return", data={}, follow_redirects=False)
     assert rv.status_code == 302

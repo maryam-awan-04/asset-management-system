@@ -5,15 +5,15 @@ from __future__ import annotations
 from app.enums import Department, Role
 from app.extensions import db
 from app.models import User
-from app.passwords import hash_password
 from app.routes import users as users_routes
+from tests.conftest import cached_hash_password
 
 
 def _seed_user(**kwargs) -> User:
     defaults = dict(
         username="u",
         email="u@example.com",
-        password_hash=hash_password("Pw1!aaaa"),
+        password_hash=cached_hash_password("Pw1!aaaa"),
         role=Role.USER,
         department=Department.TECHNOLOGY,
     )

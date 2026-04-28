@@ -7,12 +7,12 @@ from datetime import date
 from app.enums import AssetType, Department, Role, Status
 from app.extensions import db
 from app.models import Asset, Assignment, User
-from app.passwords import hash_password
 from app.routes.assets import (
     _assign_user_label,
     _close_open_assignments,
     _display_audit_value,
 )
+from tests.conftest import cached_hash_password
 
 
 def test_display_audit_value():
@@ -45,7 +45,7 @@ def test_close_open_assignments_sets_returned_dates(app):
         user = User(
             username="assignee_close",
             email="assignee_close@example.com",
-            password_hash=hash_password("Pw1!aaaa"),
+            password_hash=cached_hash_password("Pw1!aaaa"),
             role=Role.USER,
             department=Department.TECHNOLOGY,
         )

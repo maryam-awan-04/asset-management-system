@@ -1,14 +1,63 @@
-"""Shared pytest fixtures."""
+"""Shared pytest fixtures and test utilities."""
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from functools import lru_cache
+
 import pytest
+from werkzeug.test import TestResponse
 
 from app import create_app
 from app.enums import Department, Role
 from app.extensions import db
 from app.models import User
-from app.passwords import hash_password
+from app.passwords import hash_password as _hash_password
+from app.seed.constants import PYTEST_FIXTURE_PASSWORD
+
+
+@lru_cache(maxsize=64)
+def cached_hash_password(plain_password: str) -> str:
+    return _hash_password(plain_password)
+
+
+def assert_redirect(
+    response,
+    *,
+    location_contains: str,
+    status_code: int = 302,
+) -> None:
+    assert response.status_code == status_code
+    loc = response.headers.get("Location", "")
+    assert location_contains in loc
+
+
+def login(
+    client,
+    *,
+    username: str,
+    password: str,
+    login_path: str = "/auth/login",
+) -> TestResponse:
+    return client.post(
+        login_path,
+        data={"username": username, "password": password},
+        follow_redirects=False,
+    )
+
+
+def login_as(
+    client,
+    creds: Mapping[str, str],
+    *,
+    login_path: str = "/auth/login",
+) -> TestResponse:
+    return login(
+        client,
+        username=creds["username"],
+        password=creds["password"],
+        login_path=login_path,
+    )
 
 
 @pytest.fixture
@@ -38,7 +87,7 @@ def _make_user(
         User(
             username=username,
             email=email,
-            password_hash=hash_password(password_plain),
+            password_hash=cached_hash_password(password_plain),
             role=role,
             department=department,
         ),
@@ -48,7 +97,7 @@ def _make_user(
 
 @pytest.fixture
 def plain_password() -> str:
-    return "Valid1!Password"
+    return PYTEST_FIXTURE_PASSWORD
 
 
 @pytest.fixture

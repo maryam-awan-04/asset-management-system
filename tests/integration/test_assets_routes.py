@@ -12,14 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from app.enums import AssetType, AuditAction, Status
 from app.extensions import db
 from app.models import Asset, Assignment, AuditLog, User
-
-
-def _login(client, *, username: str, password: str) -> None:
-    client.post(
-        "/auth/login",
-        data={"username": username, "password": password},
-        follow_redirects=False,
-    )
+from tests.conftest import login_as
 
 
 def _create_asset(
@@ -50,22 +43,14 @@ def test_assets_list_requires_login(client):
 
 
 def test_assets_list_denies_standard_user(client, credentials_user):
-    _login(
-        client,
-        username=credentials_user["username"],
-        password=credentials_user["password"],
-    )
+    login_as(client, credentials_user)
     rv = client.get("/assets/", follow_redirects=False)
     assert rv.status_code == 302
     assert "/my-assets" in rv.headers["Location"]
 
 
 def test_assets_list_admin_ok_cache_header(client, credentials_admin):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     rv = client.get("/assets/", follow_redirects=False)
     assert rv.status_code == 200
     assert "private, no-store" in rv.headers["Cache-Control"]
@@ -74,11 +59,7 @@ def test_assets_list_admin_ok_cache_header(client, credentials_admin):
 def test_list_assets_query_filters_and_overdue(
     app, client, credentials_admin, credentials_user
 ):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     with app.app_context():
         user = db.session.scalar(select(User).where(User.username == "alice"))
         assert user is not None
@@ -140,11 +121,7 @@ def test_list_assets_query_filters_and_overdue(
 
 
 def test_assignable_users_empty_when_query_missing(client, credentials_admin):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     rv = client.get("/assets/assignable-users", follow_redirects=False)
     assert rv.status_code == 200
     assert rv.get_json() == []
@@ -153,11 +130,7 @@ def test_assignable_users_empty_when_query_missing(client, credentials_admin):
 def test_assignable_users_returns_matching_user(
     client, credentials_admin, credentials_user
 ):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     rv = client.get("/assets/assignable-users?q=ali", follow_redirects=False)
     assert rv.status_code == 200
     rows = rv.get_json()
@@ -166,11 +139,7 @@ def test_assignable_users_returns_matching_user(
 
 
 def test_new_asset_post_creates_row_and_audit(app, client, credentials_admin):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     with app.app_context():
         before = db.session.scalar(select(func.count(Asset.id))) or 0
 
@@ -205,11 +174,7 @@ def test_new_asset_post_creates_row_and_audit(app, client, credentials_admin):
 
 
 def test_new_asset_duplicate_serial_rejected(app, client, credentials_admin):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     with app.app_context():
         _create_asset(serial="DUP-SN-1")
         before = db.session.scalar(select(func.count(Asset.id))) or 0
@@ -235,11 +200,7 @@ def test_new_asset_duplicate_serial_rejected(app, client, credentials_admin):
 
 
 def test_edit_asset_updates_fields(app, client, credentials_admin):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     with app.app_context():
         asset = _create_asset(name="Old Name", serial="EDIT-SN-1")
         asset_id = asset.id
@@ -271,11 +232,7 @@ def test_edit_asset_updates_fields(app, client, credentials_admin):
 
 
 def test_delete_asset_removes_available_asset(app, client, credentials_admin):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     with app.app_context():
         asset = _create_asset(serial="DEL-SN-1", status=Status.AVAILABLE)
         aid = asset.id
@@ -295,11 +252,7 @@ def test_delete_asset_blocked_when_assigned(
     credentials_admin,
     credentials_user,
 ):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     with app.app_context():
         user = db.session.scalar(select(User).where(User.username == "alice"))
         assert user is not None
@@ -326,11 +279,7 @@ def test_delete_asset_blocked_when_assigned(
 
 
 def test_view_asset_renders_and_cache_header(app, client, credentials_admin):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     with app.app_context():
         admin = db.session.scalar(
             select(User).where(User.username == credentials_admin["username"]),
@@ -355,22 +304,14 @@ def test_view_asset_renders_and_cache_header(app, client, credentials_admin):
 
 
 def test_view_asset_missing_redirects(client, credentials_admin):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     rv = client.get("/assets/999999/view", follow_redirects=False)
     assert rv.status_code == 302
     assert "/assets/" in rv.headers["Location"]
 
 
 def test_new_asset_flush_integrity_error_renders_form(client, credentials_admin):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     with mock.patch(
         "app.routes.assets.db.session.flush",
         side_effect=IntegrityError("stmt", {}, None),
@@ -392,11 +333,7 @@ def test_new_asset_flush_integrity_error_renders_form(client, credentials_admin)
 
 
 def test_edit_asset_missing_redirects(client, credentials_admin):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     rv = client.get("/assets/888888/edit", follow_redirects=False)
     assert rv.status_code == 302
     assert "/assets/" in rv.headers["Location"]
@@ -405,11 +342,7 @@ def test_edit_asset_missing_redirects(client, credentials_admin):
 def test_edit_asset_get_prefills_assignment_fields(
     app, client, credentials_admin, credentials_user
 ):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     with app.app_context():
         user = db.session.scalar(select(User).where(User.username == "alice"))
         assert user is not None
@@ -438,11 +371,7 @@ def test_edit_asset_get_prefills_assignment_fields(
 def test_edit_asset_flash_when_changing_non_return_status_while_assigned(
     app, client, credentials_admin, credentials_user
 ):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     with app.app_context():
         user = db.session.scalar(select(User).where(User.username == "alice"))
         assert user is not None
@@ -481,11 +410,7 @@ def test_edit_asset_flash_when_changing_non_return_status_while_assigned(
 
 def test_edit_asset_duplicate_serial_integrity_flash(app, client, credentials_admin):
     """DB-level duplicate serial on flush (validators do not catch every race)."""
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     with app.app_context():
         asset = _create_asset(name="Rename Me", serial="RENAME-SN")
         aid = asset.id
@@ -517,11 +442,7 @@ def test_edit_asset_duplicate_serial_integrity_flash(app, client, credentials_ad
 def test_edit_asset_returned_closes_open_assignment(
     app, client, credentials_admin, credentials_user
 ):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     with app.app_context():
         user = db.session.scalar(select(User).where(User.username == "alice"))
         assert user is not None
@@ -567,11 +488,7 @@ def test_edit_asset_returned_closes_open_assignment(
 def test_edit_asset_assign_to_user_creates_assignment_and_audit(
     app, client, credentials_admin, credentials_user
 ):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     with app.app_context():
         user = db.session.scalar(select(User).where(User.username == "alice"))
         assert user is not None
@@ -616,11 +533,7 @@ def test_edit_asset_assign_to_user_creates_assignment_and_audit(
 def test_edit_asset_validation_error_renders_edit_template(
     app, client, credentials_admin
 ):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     with app.app_context():
         asset = _create_asset(serial="BAD-FORM-1")
         aid = asset.id
@@ -645,22 +558,14 @@ def test_edit_asset_validation_error_renders_edit_template(
 
 
 def test_delete_asset_not_found_redirects(client, credentials_admin):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     rv = client.post("/assets/999999/delete", data={}, follow_redirects=False)
     assert rv.status_code == 302
     assert "/assets/" in rv.headers["Location"]
 
 
 def test_delete_asset_invalid_csrf_form_rejected(client, credentials_admin):
-    _login(
-        client,
-        username=credentials_admin["username"],
-        password=credentials_admin["password"],
-    )
+    login_as(client, credentials_admin)
     fake_form = MagicMock()
     fake_form.validate_on_submit.return_value = False
     with mock.patch("app.routes.assets.EmptyForm", return_value=fake_form):

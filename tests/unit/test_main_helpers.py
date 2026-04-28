@@ -6,8 +6,8 @@ from app.enums import AssetType, Department, RequestStatus, Role, Status
 from app.extensions import db
 from app.forms.empty import EmptyForm
 from app.models import Asset, AssetRequest, User
-from app.passwords import hash_password
 from app.routes.main import admin_requests as admin_requests_module
+from tests.conftest import cached_hash_password
 
 
 def test_admin_request_review_template_kwargs(app):
@@ -15,7 +15,7 @@ def test_admin_request_review_template_kwargs(app):
         requester = User(
             username="main_kw_user",
             email="main_kw@example.com",
-            password_hash=hash_password("Pw1!aaaa"),
+            password_hash=cached_hash_password("Pw1!aaaa"),
             role=Role.USER,
             department=Department.TECHNOLOGY,
         )

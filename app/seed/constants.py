@@ -12,6 +12,8 @@ SEED_USER_PASSWORD = os.environ.get("SEED_USER_PASSWORD", "SeedDemo1!")
 
 SEED_EMAIL_DOMAIN = "demo.com"
 
+PYTEST_FIXTURE_PASSWORD = "Valid1!Password"
+
 _DEMO_ASSET_SERIALS = frozenset(
     {
         "IT-LP-24-00891",
