@@ -22,43 +22,46 @@ def dashboard():
     if current_user.role != Role.ADMIN:
         return redirect(url_for("main.my_assets"))
 
-    total_assets = db.session.scalar(select(func.count(Asset.id))) or 0
-    available_assets = (
-        db.session.scalar(
-            select(func.count(Asset.id)).where(Asset.status == Status.AVAILABLE),
-        )
-        or 0
-    )
-    assigned_assets = (
-        db.session.scalar(
-            select(func.count(Asset.id)).where(Asset.status == Status.ASSIGNED),
-        )
-        or 0
-    )
+    today = date.today()
+    row = db.session.execute(
+        select(
+            select(func.count(Asset.id)).scalar_subquery().label("total_assets"),
+            select(func.count(Asset.id))
+            .where(Asset.status == Status.AVAILABLE)
+            .scalar_subquery()
+            .label("available_assets"),
+            select(func.count(Asset.id))
+            .where(Asset.status == Status.ASSIGNED)
+            .scalar_subquery()
+            .label("assigned_assets"),
+            select(func.count(Assignment.id))
+            .where(
+                Assignment.returned_date.is_(None),
+                Assignment.return_due_date.is_not(None),
+                Assignment.return_due_date < today,
+            )
+            .scalar_subquery()
+            .label("overdue_assignments"),
+            select(func.count(AssetRequest.id))
+            .scalar_subquery()
+            .label("total_requests"),
+            select(func.count(AssetRequest.id))
+            .where(AssetRequest.status == RequestStatus.PENDING)
+            .scalar_subquery()
+            .label("pending_requests"),
+        ),
+    ).one()
+
+    total_assets = int(row.total_assets or 0)
+    available_assets = int(row.available_assets or 0)
+    assigned_assets = int(row.assigned_assets or 0)
+    overdue_assignments = int(row.overdue_assignments or 0)
+    total_requests = int(row.total_requests or 0)
+    pending_requests = int(row.pending_requests or 0)
+
     assignable_pool = available_assets + assigned_assets
     utilisation_pct: float | None = (
         round((assigned_assets / assignable_pool) * 100, 1) if assignable_pool else None
-    )
-
-    overdue_assignments = (
-        db.session.scalar(
-            select(func.count(Assignment.id)).where(
-                Assignment.returned_date.is_(None),
-                Assignment.return_due_date.is_not(None),
-                Assignment.return_due_date < date.today(),
-            ),
-        )
-        or 0
-    )
-
-    total_requests = db.session.scalar(select(func.count(AssetRequest.id))) or 0
-    pending_requests = (
-        db.session.scalar(
-            select(func.count(AssetRequest.id)).where(
-                AssetRequest.status == RequestStatus.PENDING
-            ),
-        )
-        or 0
     )
 
     return render_template(

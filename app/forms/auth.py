@@ -5,7 +5,7 @@ import re
 from wtforms import BooleanField, PasswordField, SelectField, StringField, SubmitField
 from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError
 
-from app.enums import Department
+from app.forms._helpers import department_choices, format_department
 from app.forms.base import StripWhitespaceForm
 
 
@@ -19,19 +19,6 @@ def _password_has_symbol(form: StripWhitespaceForm, field: PasswordField) -> Non
         raise ValidationError(
             "Password must contain at least one symbol (e.g. !, @, #, $)."
         )
-
-
-def _department_choices() -> list[tuple[str, str]]:
-    return [(d.name, d.value) for d in Department]
-
-
-def _format_department(key: str | None) -> Department | None:
-    if key is None or key == "":
-        return None
-    try:
-        return Department[key]
-    except KeyError as exc:
-        raise ValidationError("Invalid department.") from exc
 
 
 class LoginForm(StripWhitespaceForm):
@@ -71,7 +58,7 @@ class RegistrationForm(StripWhitespaceForm):
     department = SelectField(
         "Department",
         choices=[],
-        coerce=_format_department,
+        coerce=format_department,
         validators=[DataRequired(message="Choose a department.")],
     )
     password = PasswordField(
@@ -100,5 +87,5 @@ class RegistrationForm(StripWhitespaceForm):
         super().__init__(*args, **kwargs)
         self.department.choices = [
             ("", "-- Select department --"),
-            *_department_choices(),
+            *department_choices(),
         ]

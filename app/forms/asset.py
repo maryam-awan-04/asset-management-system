@@ -14,29 +14,17 @@ from wtforms import (
 )
 from wtforms.validators import DataRequired, Length, Optional, ValidationError
 
-from app.enums import AssetType, Status
+from app.enums import Status
 from app.extensions import db
+from app.forms._helpers import asset_type_choices, format_asset_type
 from app.forms.base import StripWhitespaceForm
 from app.models import Asset, Assignment, User
 
 ASSET_NOTES_MAX_LEN = 4000
 
 
-def _asset_type_choices() -> list[tuple[str, str]]:
-    return [(t.name, t.value) for t in AssetType]
-
-
 def _status_choices() -> list[tuple[str, str]]:
     return [(s.name, s.value) for s in Status]
-
-
-def _format_asset_type(key: str | None) -> AssetType | None:
-    if key is None or key == "":
-        return None
-    try:
-        return AssetType[key]
-    except KeyError as exc:
-        raise ValidationError("Invalid asset type.") from exc
 
 
 def _format_status(key: str | None) -> Status | None:
@@ -72,7 +60,7 @@ class AssetCreateForm(StripWhitespaceForm):
     asset_type = SelectField(
         "Asset type",
         choices=[],
-        coerce=_format_asset_type,
+        coerce=format_asset_type,
         validators=[DataRequired(message="Choose an asset type.")],
     )
     status = SelectField(
@@ -105,7 +93,7 @@ class AssetCreateForm(StripWhitespaceForm):
         super().__init__(*args, **kwargs)
         self.asset_type.choices = [
             ("", "-- Select asset type --"),
-            *_asset_type_choices(),
+            *asset_type_choices(),
         ]
         self.status.choices = [
             ("", "-- Select status --"),
@@ -153,7 +141,7 @@ class AssetEditForm(AssetCreateForm):
     def __init__(self, *args, asset_id: int, **kwargs):
         self._asset_id = asset_id
         super().__init__(*args, exclude_asset_id=asset_id, **kwargs)
-        self.asset_type.choices = _asset_type_choices()
+        self.asset_type.choices = asset_type_choices()
         self.status.choices = _status_choices()
 
     def validate_status(self, field: Field) -> None:

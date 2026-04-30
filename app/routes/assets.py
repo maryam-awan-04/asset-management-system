@@ -26,6 +26,11 @@ from app.forms.asset import AssetCreateForm, AssetEditForm
 from app.forms.empty import EmptyForm
 from app.models import Asset, Assignment, AuditLog, User
 from app.util_enum import parse_enum_query_value
+from app.util_pagination import (
+    DEFAULT_LIST_PER_PAGE,
+    page_from_request,
+    paginate_select,
+)
 from app.util_search import ilike_fragment_from_query
 
 bp = Blueprint("assets", __name__, url_prefix="/assets")
@@ -185,7 +190,22 @@ def list_assets():
         )
         stmt = stmt.where(overdue_exists)
 
-    assets = db.session.scalars(stmt).all()
+    page = page_from_request(request)
+    pagination = paginate_select(
+        stmt,
+        page=page,
+        per_page=DEFAULT_LIST_PER_PAGE,
+    )
+    assets = pagination.items
+
+    filter_query: dict[str, str] = {}
+    if type_key:
+        filter_query["asset_type"] = type_key
+    if status_key:
+        filter_query["status"] = status_key
+    if filter_overdue:
+        filter_query["overdue"] = "1"
+
     active_return_due_by_asset: dict[int, str] = {}
     if assets:
         asset_ids = [a.id for a in assets]
@@ -211,6 +231,9 @@ def list_assets():
     html = render_template(
         "assets/list.html",
         assets=assets,
+        pagination=pagination,
+        list_endpoint="assets.list_assets",
+        filter_query=filter_query,
         filter_asset_type=type_key,
         filter_status=status_key,
         filter_overdue=filter_overdue,

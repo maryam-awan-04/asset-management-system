@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from app.enums import AssetType, Department, RequestStatus, Role, Status
 from app.extensions import db
-from app.forms.empty import EmptyForm
+from app.forms.admin_request_review import AdminRequestReviewForm
 from app.models import Asset, AssetRequest, User
 from app.routes.main import admin_requests as admin_requests_module
 from tests.conftest import cached_hash_password
@@ -49,20 +49,15 @@ def test_admin_request_review_template_kwargs(app):
         db.session.add_all([a1, a2])
         db.session.commit()
 
-        csrf = EmptyForm()
+        choices = [(str(a1.id), "x"), (str(a2.id), "y")]
+        review_form = AdminRequestReviewForm(asset_radio_choices=choices)
         kwargs = admin_requests_module._admin_request_review_template_kwargs(
             req=req,
             available_assets=[a1, a2],
-            csrf_form=csrf,
-            selected_asset_id="5",
-            selected_return_due="2026-12-01",
-            selected_asset_notes="hello",
+            review_form=review_form,
         )
 
-        assert kwargs["csrf_form"] is csrf
-        assert kwargs["selected_asset_id"] == "5"
-        assert kwargs["selected_return_due"] == "2026-12-01"
-        assert kwargs["selected_asset_notes"] == "hello"
+        assert kwargs["review_form"] is review_form
         assert kwargs["req"] is req
         assert kwargs["assets_notes_by_id"] == {
             str(a1.id): "  trimmed  ",

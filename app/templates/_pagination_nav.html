@@ -1,0 +1,31 @@
+{# Expects: pagination, list_endpoint (str), filter_query (dict of str -> str for non-page args) #}
+{% if pagination.pages > 1 %}
+  <nav class="d-flex flex-wrap align-items-center justify-content-between gap-2 my-3" aria-label="Pagination">
+    <p class="text-muted small mb-0">
+      Page {{ pagination.page }} of {{ pagination.pages }}
+      ({{ pagination.total }} total)
+    </p>
+    <ul class="pagination pagination-sm mb-0">
+      {% if pagination.has_prev %}
+        <li class="page-item">
+          <a
+            class="page-link"
+            href="{{ url_for(list_endpoint, page=pagination.prev_num, **filter_query) }}"
+          >Previous</a>
+        </li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link">Previous</span></li>
+      {% endif %}
+      {% if pagination.has_next %}
+        <li class="page-item">
+          <a
+            class="page-link"
+            href="{{ url_for(list_endpoint, page=pagination.next_num, **filter_query) }}"
+          >Next</a>
+        </li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link">Next</span></li>
+      {% endif %}
+    </ul>
+  </nav>
+{% endif %}

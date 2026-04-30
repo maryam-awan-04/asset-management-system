@@ -37,7 +37,11 @@ def login():
                 "Invalid username or password.",
                 "danger",
             )
-            record_audit(None, AuditAction.LOGIN_FAILED, None)
+            record_audit(
+                None,
+                AuditAction.LOGIN_FAILED,
+                f"attempted username={username!r}",
+            )
             db.session.commit()
             return render_template("auth/login.html", form=form)
 

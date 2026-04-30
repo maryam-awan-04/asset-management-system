@@ -105,6 +105,7 @@
         else u.searchParams.delete("role");
         if (q) u.searchParams.set("q", q);
         else u.searchParams.delete("q");
+        u.searchParams.delete("page");
         var next = u.pathname + u.search + u.hash;
         if (next !== window.location.pathname + window.location.search + window.location.hash) {
           history.replaceState(null, "", next);
@@ -121,6 +122,7 @@
         if (d) params.set("department", d);
         if (r) params.set("role", r);
         if (q) params.set("q", q);
+        params.set("page", "1");
         var qs = params.toString();
         var url = qs ? fragmentUrl + "?" + qs : fragmentUrl;
         fetch(url, {

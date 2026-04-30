@@ -53,5 +53,7 @@ class AuditAction(Enum):
     ASSET_ASSIGNED = "Asset Assigned"
     ASSET_RETURNED = "Asset Returned"
     ASSET_REQUEST_SUBMITTED = "Asset Request Submitted"
+    ASSET_REQUEST_APPROVED = "Asset Request Approved"
     ASSET_REQUEST_REJECTED = "Asset Request Rejected"
+    ASSET_REQUEST_UPDATED = "Asset Request Updated"
     ASSET_REQUEST_DELETED = "Asset Request Deleted"

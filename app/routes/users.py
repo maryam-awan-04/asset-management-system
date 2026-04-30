@@ -22,6 +22,11 @@ from app.forms.admin_user import AdminUserEditForm
 from app.forms.empty import EmptyForm
 from app.models import Assignment, User
 from app.util_enum import parse_enum_query_value
+from app.util_pagination import (
+    DEFAULT_LIST_PER_PAGE,
+    page_from_request,
+    paginate_select,
+)
 from app.util_search import ilike_fragment_from_query
 
 bp = Blueprint("users", __name__, url_prefix="/users")
@@ -60,11 +65,11 @@ def _other_admin_count(exclude_user_id: int) -> int:
     )
 
 
-def _filtered_users_bundle(
+def _users_filtered_stmt(
     raw_dept: str,
     raw_role: str,
     q_raw: str,
-) -> tuple[list[User], str, str, str]:
+) -> tuple:
     stmt = select(User)
 
     q_stripped = (q_raw or "").strip()
@@ -85,22 +90,44 @@ def _filtered_users_bundle(
         stmt = stmt.where(User.username.ilike(f"%{q_safe}%"))
 
     stmt = stmt.order_by(User.id.asc())
-    users = db.session.scalars(stmt).all()
-    return users, dept_key, role_key, q_stripped
+    return stmt, dept_key, role_key, q_stripped
+
+
+def _users_list_query_args(
+    dept_key: str, role_key: str, q_stripped: str
+) -> dict[str, str]:
+    args: dict[str, str] = {}
+    if dept_key:
+        args["department"] = dept_key
+    if role_key:
+        args["role"] = role_key
+    if q_stripped:
+        args["q"] = q_stripped
+    return args
 
 
 @bp.get("/")
 @admin_required
 def list_users():
-    users, dept_key, role_key, q_stripped = _filtered_users_bundle(
+    stmt, dept_key, role_key, q_stripped = _users_filtered_stmt(
         request.args.get("department", ""),
         request.args.get("role", ""),
         request.args.get("q") or "",
     )
+    page = page_from_request(request)
+    pagination = paginate_select(
+        stmt,
+        page=page,
+        per_page=DEFAULT_LIST_PER_PAGE,
+    )
+    filter_query = _users_list_query_args(dept_key, role_key, q_stripped)
 
     html = render_template(
         "users/list.html",
-        users=users,
+        users=pagination.items,
+        pagination=pagination,
+        list_endpoint="users.list_users",
+        filter_query=filter_query,
         filter_department=dept_key,
         filter_role=role_key,
         filter_q=q_stripped,
@@ -113,14 +140,25 @@ def list_users():
 @bp.get("/list-results")
 @admin_required
 def list_users_results():
-    users, dept_key, role_key, q_stripped = _filtered_users_bundle(
+    stmt, dept_key, role_key, q_stripped = _users_filtered_stmt(
         request.args.get("department", ""),
         request.args.get("role", ""),
         request.args.get("q") or "",
     )
+    page = page_from_request(request)
+    pagination = paginate_select(
+        stmt,
+        page=page,
+        per_page=DEFAULT_LIST_PER_PAGE,
+    )
+    filter_query = _users_list_query_args(dept_key, role_key, q_stripped)
+
     html = render_template(
         "users/_list_results.html",
-        users=users,
+        users=pagination.items,
+        pagination=pagination,
+        list_endpoint="users.list_users",
+        filter_query=filter_query,
         filter_department=dept_key,
         filter_role=role_key,
         filter_q=q_stripped,

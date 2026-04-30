@@ -115,7 +115,7 @@ def test_admin_review_approve_assigns_and_audits(
     rv = client.post(
         f"/admin/requests/{rid}",
         data={
-            "decision_action": "approve",
+            "approve": "Approve and Assign",
             "asset_id": str(aid),
             "return_due_date": (date.today() + timedelta(days=7)).isoformat(),
             "asset_notes": "  issued from pool  ",
@@ -130,6 +130,14 @@ def test_admin_review_approve_assigns_and_audits(
         asset = db.session.get(Asset, aid)
         assert req is not None and req.status == RequestStatus.APPROVED
         assert asset is not None and asset.status == Status.ASSIGNED
+        approved = db.session.scalar(
+            select(AuditLog)
+            .where(AuditLog.action == AuditAction.ASSET_REQUEST_APPROVED)
+            .order_by(AuditLog.id.desc())
+            .limit(1),
+        )
+        assert approved is not None
+        assert str(rid) in (approved.details or "")
         audit = db.session.scalar(
             select(AuditLog)
             .where(AuditLog.action == AuditAction.ASSET_ASSIGNED)
@@ -146,7 +154,7 @@ def test_admin_review_reject(app, client, credentials_admin, credentials_user):
 
     rv = client.post(
         f"/admin/requests/{rid}",
-        data={"decision_action": "reject"},
+        data={"reject": "Reject request"},
         follow_redirects=False,
     )
     assert rv.status_code == 302
@@ -175,7 +183,7 @@ def test_admin_review_non_pending_redirects(
 
     rv = client.post(
         f"/admin/requests/{rid}",
-        data={"decision_action": "approve", "asset_id": "1"},
+        data={"approve": "Approve and Assign", "asset_id": "1"},
         follow_redirects=False,
     )
     assert rv.status_code == 302
@@ -191,7 +199,7 @@ def test_admin_review_approve_notes_too_long(
     rv = client.post(
         f"/admin/requests/{rid}",
         data={
-            "decision_action": "approve",
+            "approve": "Approve and Assign",
             "asset_id": str(aid),
             "asset_notes": "x" * 4001,
         },
@@ -209,7 +217,7 @@ def test_admin_review_approve_invalid_return_due(
     rv = client.post(
         f"/admin/requests/{rid}",
         data={
-            "decision_action": "approve",
+            "approve": "Approve and Assign",
             "asset_id": str(aid),
             "return_due_date": "not-a-date",
             "asset_notes": "",
@@ -229,7 +237,7 @@ def test_admin_review_approve_return_due_before_today(
     rv = client.post(
         f"/admin/requests/{rid}",
         data={
-            "decision_action": "approve",
+            "approve": "Approve and Assign",
             "asset_id": str(aid),
             "return_due_date": past.isoformat(),
             "asset_notes": "",
@@ -248,7 +256,7 @@ def test_admin_review_approve_no_asset_selected(
     rv = client.post(
         f"/admin/requests/{rid}",
         data={
-            "decision_action": "approve",
+            "approve": "Approve and Assign",
             "asset_id": "",
             "asset_notes": "",
         },
@@ -279,14 +287,15 @@ def test_admin_review_approve_wrong_asset_type_redirects(
     rv = client.post(
         f"/admin/requests/{rid}",
         data={
-            "decision_action": "approve",
+            "approve": "Approve and Assign",
             "asset_id": str(wrong_aid),
             "asset_notes": "",
         },
         follow_redirects=False,
     )
-    assert rv.status_code == 302
-    assert f"/admin/requests/{rid}" in rv.headers["Location"]
+    assert rv.status_code == 200
+    body = rv.get_data(as_text=True).lower()
+    assert "not a valid choice" in body or "valid choice" in body
     with app.app_context():
         req = db.session.get(AssetRequest, rid)
         assert req is not None and req.status == RequestStatus.PENDING
@@ -301,7 +310,6 @@ def test_admin_review_invalid_action_redirects(
     rv = client.post(
         f"/admin/requests/{rid}",
         data={
-            "decision_action": "maybe",
             "asset_id": str(aid),
         },
         follow_redirects=False,

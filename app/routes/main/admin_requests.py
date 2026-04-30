@@ -9,30 +9,22 @@ from app.access import admin_required
 from app.audit import record_audit
 from app.enums import AssetType, AuditAction, RequestStatus, Status
 from app.extensions import db
-from app.forms.empty import EmptyForm
+from app.forms.admin_request_review import AdminRequestReviewForm
 from app.models import Asset, AssetRequest, Assignment, User
 from app.routes.main.blueprint import bp
 from app.util_enum import parse_enum_query_value
-
-ASSET_NOTES_MAX_LEN = 4000
 
 
 def _admin_request_review_template_kwargs(
     *,
     req: AssetRequest,
     available_assets: list[Asset],
-    csrf_form: EmptyForm,
-    selected_asset_id: str,
-    selected_return_due: str,
-    selected_asset_notes: str,
+    review_form: AdminRequestReviewForm,
 ) -> dict:
     return {
         "req": req,
         "available_assets": available_assets,
-        "csrf_form": csrf_form,
-        "selected_asset_id": selected_asset_id,
-        "selected_return_due": selected_return_due,
-        "selected_asset_notes": selected_asset_notes,
+        "review_form": review_form,
         "assets_notes_by_id": {
             str(a.id): ("" if a.notes is None else str(a.notes))
             for a in available_assets
@@ -103,71 +95,60 @@ def admin_review_request(request_id: int):
         .order_by(Asset.name.asc(), Asset.id.asc())
     ).all()
 
-    csrf_form = EmptyForm()
-    if request.method == "POST":
-        if not csrf_form.validate_on_submit():
-            flash("Could not process the request. Please try again.", "danger")
-            return redirect(url_for("main.admin_review_request", request_id=req.id))
+    radio_choices = [
+        (str(a.id), f"{a.name} — {a.serial_number}") for a in available_assets
+    ]
 
+    if request.method == "POST":
+        review_form = AdminRequestReviewForm(
+            formdata=request.form,
+            asset_radio_choices=radio_choices,
+        )
         if req.status != RequestStatus.PENDING:
             flash("Only pending requests can be changed.", "warning")
             return redirect(url_for("main.admin_review_request", request_id=req.id))
 
-        action = (request.form.get("decision_action") or "").strip().lower()
+        if not review_form.validate():
+            return render_template(
+                "main/admin_request_review.html",
+                **_admin_request_review_template_kwargs(
+                    req=req,
+                    available_assets=available_assets,
+                    review_form=review_form,
+                ),
+            )
+
         today = date.today()
 
-        if action == "approve":
-            raw_asset_id = (request.form.get("asset_id") or "").strip()
-            raw_return_due = (request.form.get("return_due_date") or "").strip()
-            asset_notes_raw = request.form.get("asset_notes") or ""
-            if len(asset_notes_raw) > ASSET_NOTES_MAX_LEN:
+        if review_form.reject.data:
+            requester_label = (
+                req.requester.username if req.requester else f"user_id={req.user_id}"
+            )
+            req.status = RequestStatus.REJECTED
+            req.decision_date = today
+            req.approved_by = current_user.id
+            req.asset_id = None
+            record_audit(
+                current_user.id,
+                AuditAction.ASSET_REQUEST_REJECTED,
+                (
+                    f"Request #{req.id} | {req.asset_type.value} | "
+                    f"requester {requester_label}"
+                ),
+            )
+            db.session.commit()
+            flash("Request rejected.", "info")
+            return redirect(url_for("main.admin_requests"))
+
+        if review_form.approve.data:
+            if not available_assets:
                 flash(
-                    f"Asset notes cannot exceed {ASSET_NOTES_MAX_LEN} characters.",
+                    "There are no available assets of this type right now.",
                     "danger",
                 )
-                return render_template(
-                    "main/admin_request_review.html",
-                    **_admin_request_review_template_kwargs(
-                        req=req,
-                        available_assets=available_assets,
-                        csrf_form=csrf_form,
-                        selected_asset_id=raw_asset_id,
-                        selected_return_due=raw_return_due,
-                        selected_asset_notes=asset_notes_raw,
-                    ),
-                )
-            return_due_date = None
-            if raw_return_due:
-                try:
-                    return_due_date = date.fromisoformat(raw_return_due)
-                except ValueError:
-                    flash(
-                        "Return due date must be a valid date (YYYY-MM-DD).", "danger"
-                    )
-                    return render_template(
-                        "main/admin_request_review.html",
-                        **_admin_request_review_template_kwargs(
-                            req=req,
-                            available_assets=available_assets,
-                            csrf_form=csrf_form,
-                            selected_asset_id=raw_asset_id,
-                            selected_return_due=raw_return_due,
-                            selected_asset_notes=asset_notes_raw,
-                        ),
-                    )
-                if return_due_date < today:
-                    flash("Return due date cannot be before today.", "danger")
-                    return render_template(
-                        "main/admin_request_review.html",
-                        **_admin_request_review_template_kwargs(
-                            req=req,
-                            available_assets=available_assets,
-                            csrf_form=csrf_form,
-                            selected_asset_id=raw_asset_id,
-                            selected_return_due=raw_return_due,
-                            selected_asset_notes=asset_notes_raw,
-                        ),
-                    )
+                return redirect(url_for("main.admin_review_request", request_id=req.id))
+
+            raw_asset_id = str(review_form.asset_id.data or "")
             if not raw_asset_id.isdigit():
                 flash("Select an available asset before approving.", "danger")
                 return render_template(
@@ -175,12 +156,12 @@ def admin_review_request(request_id: int):
                     **_admin_request_review_template_kwargs(
                         req=req,
                         available_assets=available_assets,
-                        csrf_form=csrf_form,
-                        selected_asset_id=raw_asset_id,
-                        selected_return_due=raw_return_due,
-                        selected_asset_notes=asset_notes_raw,
+                        review_form=review_form,
                     ),
                 )
+
+            return_due_date = review_form.return_due_date.data
+            asset_notes_raw = review_form.asset_notes.data or ""
 
             selected_asset = db.session.get(Asset, int(raw_asset_id))
             if (
@@ -214,6 +195,17 @@ def admin_review_request(request_id: int):
 
             requester = db.session.get(User, req.user_id)
             requester_name = requester.username if requester else f"user {req.user_id}"
+
+            record_audit(
+                current_user.id,
+                AuditAction.ASSET_REQUEST_APPROVED,
+                (
+                    f"Request #{req.id} | {req.asset_type.value} | "
+                    f"requester {requester_name} | asset "
+                    f"{selected_asset.serial_number}: {selected_asset.name}"
+                    f"{f' | return due {return_due_date.isoformat()}' if return_due_date else ''}"
+                ),
+            )
             record_audit(
                 current_user.id,
                 AuditAction.ASSET_ASSIGNED,
@@ -228,37 +220,15 @@ def admin_review_request(request_id: int):
             flash("Request approved and asset assigned.", "success")
             return redirect(url_for("main.admin_requests"))
 
-        if action == "reject":
-            requester_label = (
-                req.requester.username if req.requester else f"user_id={req.user_id}"
-            )
-            req.status = RequestStatus.REJECTED
-            req.decision_date = today
-            req.approved_by = current_user.id
-            req.asset_id = None
-            record_audit(
-                current_user.id,
-                AuditAction.ASSET_REQUEST_REJECTED,
-                (
-                    f"Request #{req.id} | {req.asset_type.value} | "
-                    f"requester {requester_label}"
-                ),
-            )
-            db.session.commit()
-            flash("Request rejected.", "info")
-            return redirect(url_for("main.admin_requests"))
-
         flash("Invalid action.", "danger")
         return redirect(url_for("main.admin_review_request", request_id=req.id))
 
+    review_form = AdminRequestReviewForm(asset_radio_choices=radio_choices)
     return render_template(
         "main/admin_request_review.html",
         **_admin_request_review_template_kwargs(
             req=req,
             available_assets=available_assets,
-            csrf_form=csrf_form,
-            selected_asset_id="",
-            selected_return_due="",
-            selected_asset_notes="",
+            review_form=review_form,
         ),
     )

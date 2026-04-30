@@ -16,10 +16,8 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     config_class = get_config(config_name)
     app.config.from_object(config_class)
 
-    if app.config.get("TESTING"):
-        os.makedirs(app.instance_path, exist_ok=True)
-    else:
-        os.makedirs(app.instance_path, exist_ok=True)
+    os.makedirs(app.instance_path, exist_ok=True)
+    if not app.config.get("TESTING"):
         db_path = os.path.join(app.instance_path, "app.db")
         app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
 

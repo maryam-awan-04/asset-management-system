@@ -58,7 +58,11 @@
 
       {% if filter_asset_type or filter_status or filter_overdue %}
         <p class="text-muted small mb-3">
-          Showing {{ assets|length }} matching asset{% if assets|length != 1 %}s{% endif %}.
+          {{ pagination.total }} matching asset{% if pagination.total != 1 %}s{% endif %}.
+        </p>
+      {% elif pagination.pages > 1 %}
+        <p class="text-muted small mb-3">
+          {{ pagination.total }} asset{% if pagination.total != 1 %}s{% endif %}.
         </p>
       {% endif %}
 
@@ -141,6 +145,7 @@
             </tbody>
           </table>
         </div>
+        {% include "_pagination_nav.html" %}
       {% else %}
         <p class="text-muted mb-0">
           {% if filter_asset_type or filter_status or filter_overdue %}

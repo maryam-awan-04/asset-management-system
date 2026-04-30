@@ -61,7 +61,7 @@ def test_other_admin_counts_excluding_self(app):
         assert users_routes._other_admin_count(adm2.id) == 1
 
 
-def test_filtered_users_bundle_filters(app):
+def test_users_filtered_stmt_filters(app):
     with app.app_context():
         _seed_user(
             username="finance_user",
@@ -74,11 +74,12 @@ def test_filtered_users_bundle_filters(app):
             department=Department.TECHNOLOGY,
         )
 
-        rows, dk, rk, qs = users_routes._filtered_users_bundle(
+        stmt, dk, rk, qs = users_routes._users_filtered_stmt(
             "TECHNOLOGY",
             "",
             "alice",
         )
+        rows = list(db.session.scalars(stmt))
         names = [u.username for u in rows]
         assert "alice_tech" in names
         assert "finance_user" not in names
@@ -87,11 +88,12 @@ def test_filtered_users_bundle_filters(app):
         assert qs == "alice"
 
 
-def test_filtered_users_bundle_role_only(app):
+def test_users_filtered_stmt_role_only(app):
     with app.app_context():
         _seed_user(username="only_admin", email="oa@example.com", role=Role.ADMIN)
 
-        rows, dk, rk, qs = users_routes._filtered_users_bundle("", "ADMIN", "")
+        stmt, dk, rk, qs = users_routes._users_filtered_stmt("", "ADMIN", "")
+        rows = list(db.session.scalars(stmt))
         assert all(u.role == Role.ADMIN for u in rows)
         assert rk == "ADMIN"
         assert dk == ""

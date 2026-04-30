@@ -1,30 +1,17 @@
 from __future__ import annotations
 
 from wtforms import SelectField, SubmitField, TextAreaField
-from wtforms.validators import DataRequired, Length, ValidationError
+from wtforms.validators import DataRequired, Length
 
-from app.enums import AssetType
+from app.forms._helpers import asset_type_choices, format_asset_type
 from app.forms.base import StripWhitespaceForm
-
-
-def _asset_type_choices() -> list[tuple[str, str]]:
-    return [(t.name, t.value) for t in AssetType]
-
-
-def _format_asset_type(key: str | None) -> AssetType | None:
-    if key is None or key == "":
-        return None
-    try:
-        return AssetType[key]
-    except KeyError as exc:
-        raise ValidationError("Invalid asset type.") from exc
 
 
 class AssetRequestCreateForm(StripWhitespaceForm):
     asset_type = SelectField(
         "Asset type",
         choices=[],
-        coerce=_format_asset_type,
+        coerce=format_asset_type,
         validators=[DataRequired(message="Choose an asset type.")],
     )
     note = TextAreaField(
@@ -46,7 +33,7 @@ class AssetRequestCreateForm(StripWhitespaceForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.asset_type.choices = _asset_type_choices()
+        self.asset_type.choices = asset_type_choices()
 
 
 class AssetRequestEditNoteForm(StripWhitespaceForm):

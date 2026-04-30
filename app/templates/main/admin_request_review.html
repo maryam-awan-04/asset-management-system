@@ -46,7 +46,7 @@
 
       {% if req.status == RequestStatus.PENDING %}
         <form method="post" novalidate>
-          {{ csrf_form.hidden_tag() }}
+          {{ review_form.hidden_tag() }}
 
           <h2 class="h5 mb-3">Available {{ req.asset_type.value }} assets</h2>
           {% if available_assets %}
@@ -62,18 +62,10 @@
                   </tr>
                 </thead>
                 <tbody>
-                  {% for asset in available_assets %}
+                  {% for subfield in review_form.asset_id %}
+                    {% set asset = available_assets[loop.index0] %}
                     <tr>
-                      <td>
-                        <input
-                          class="form-check-input"
-                          type="radio"
-                          name="asset_id"
-                          id="asset-choice-{{ asset.id }}"
-                          value="{{ asset.id }}"
-                          {% if selected_asset_id == (asset.id|string) %}checked{% endif %}
-                        />
-                      </td>
+                      <td>{{ subfield(class="form-check-input") }}</td>
                       <td>{{ asset.id }}</td>
                       <td>{{ asset.name }}</td>
                       <td><span class="table-serial">{{ asset.serial_number }}</span></td>
@@ -84,25 +76,14 @@
               </table>
             </div>
             <div class="mb-4" style="max-width: 20rem;">
-              <label class="form-label" for="return_due_date">Return due date (optional)</label>
-              <input
-                type="date"
-                class="form-control"
-                id="return_due_date"
-                name="return_due_date"
-                value="{{ selected_return_due }}"
-              />
+              {{ review_form.return_due_date.label(class="form-label") }}
+              {{ review_form.return_due_date(class="form-control") }}
+              {% for e in review_form.return_due_date.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
             </div>
             <div class="mb-4" style="max-width: 36rem;">
-              <label class="form-label" for="admin-approve-asset-notes">Asset notes</label>
-              <textarea
-                class="form-control"
-                id="admin-approve-asset-notes"
-                name="asset_notes"
-                rows="4"
-                maxlength="4000"
-                placeholder="Select asset."
-              >{{ selected_asset_notes }}</textarea>
+              {{ review_form.asset_notes.label(class="form-label") }}
+              {{ review_form.asset_notes(class="form-control", placeholder="Select asset.") }}
+              {% for e in review_form.asset_notes.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
             </div>
             <script>
               (() => {
@@ -119,24 +100,18 @@
                 if (ta.value.trim() === "") syncFromSelection();
               })();
             </script>
-            <div class="d-flex flex-wrap gap-2">
-              <button type="submit" class="btn btn-brand" name="decision_action" value="approve">
-                Approve and Assign
-              </button>
-              <button type="submit" class="btn btn-outline-danger" name="decision_action" value="reject">
-                Reject request
-              </button>
-            </div>
-          {% else %}
-            <p class="text-muted mb-3">
-              There are no available assets of this type right now.
-            </p>
-            <div class="d-flex flex-wrap gap-2">
-              <button type="submit" class="btn btn-outline-danger" name="decision_action" value="reject">
-                Reject request
-              </button>
-            </div>
           {% endif %}
+
+          {% if review_form.asset_id.errors %}
+            <div class="text-danger small mb-3">{% for e in review_form.asset_id.errors %}{{ e }}{% endfor %}</div>
+          {% endif %}
+
+          <div class="d-flex flex-wrap gap-2">
+            {% if available_assets %}
+              {{ review_form.approve(class="btn btn-brand") }}
+            {% endif %}
+            {{ review_form.reject(class="btn btn-outline-danger") }}
+          </div>
         </form>
       {% endif %}
     </div>

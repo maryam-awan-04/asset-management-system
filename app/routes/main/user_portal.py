@@ -119,6 +119,14 @@ def edit_my_request(request_id: int):
         form = AssetRequestEditNoteForm(formdata=request.form)
 
     if form.validate_on_submit():
+        record_audit(
+            current_user.id,
+            AuditAction.ASSET_REQUEST_UPDATED,
+            (
+                f"Request #{req.id} | {req.asset_type.value} | "
+                f"note updated by {current_user.username}"
+            ),
+        )
         req.note = form.note.data
         db.session.commit()
         flash("Request note updated.", "success")

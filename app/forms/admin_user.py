@@ -4,18 +4,15 @@ from sqlalchemy import select
 from wtforms import Field, SelectField, StringField, SubmitField
 from wtforms.validators import DataRequired, Length, ValidationError
 
-from app.enums import Department, Role
+from app.enums import Role
 from app.extensions import db
+from app.forms._helpers import department_choices, format_department
 from app.forms.base import StripWhitespaceForm
 from app.models import User
 
 
 def _role_choices() -> list[tuple[str, str]]:
     return [(r.name, r.value) for r in Role]
-
-
-def _department_choices() -> list[tuple[str, str]]:
-    return [(d.name, d.value) for d in Department]
 
 
 def _format_role(key: str | None) -> Role | None:
@@ -25,15 +22,6 @@ def _format_role(key: str | None) -> Role | None:
         return Role[key]
     except KeyError as exc:
         raise ValidationError("Invalid role.") from exc
-
-
-def _format_department(key: str | None) -> Department | None:
-    if key is None or key == "":
-        return None
-    try:
-        return Department[key]
-    except KeyError as exc:
-        raise ValidationError("Invalid department.") from exc
 
 
 class AdminUserEditForm(StripWhitespaceForm):
@@ -55,7 +43,7 @@ class AdminUserEditForm(StripWhitespaceForm):
     department = SelectField(
         "Department",
         choices=[],
-        coerce=_format_department,
+        coerce=format_department,
         validators=[DataRequired(message="Choose a department.")],
     )
     submit = SubmitField("Save changes")
@@ -64,7 +52,7 @@ class AdminUserEditForm(StripWhitespaceForm):
         self._exclude_user_id = exclude_user_id
         super().__init__(*args, **kwargs)
         self.role.choices = _role_choices()
-        self.department.choices = _department_choices()
+        self.department.choices = department_choices()
 
     def validate_username(self, field: Field) -> None:
         name = (field.data or "").strip()
