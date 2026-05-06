@@ -16,95 +16,100 @@ from app.seed.constants import (
 )
 from app.seed.overdue_requests import seed_overdue_and_requests
 
+DEMO_SEED_USER_SPECS: list[tuple[str, str, Department, Role]] = [
+    (
+        "sarah.mitchell",
+        f"sarah.mitchell@{SEED_EMAIL_DOMAIN}",
+        Department.FINANCE,
+        Role.USER,
+    ),
+    ("david.nguyen", f"david.nguyen@{SEED_EMAIL_DOMAIN}", Department.STS, Role.USER),
+    (
+        "emily.carter",
+        f"emily.carter@{SEED_EMAIL_DOMAIN}",
+        Department.TECHNOLOGY,
+        Role.USER,
+    ),
+    (
+        "james.okonkwo",
+        f"james.okonkwo@{SEED_EMAIL_DOMAIN}",
+        Department.FINANCE,
+        Role.USER,
+    ),
+    ("priya.sharma", f"priya.sharma@{SEED_EMAIL_DOMAIN}", Department.LEGAL, Role.USER),
+    ("marcus.weber", f"marcus.weber@{SEED_EMAIL_DOMAIN}", Department.HR, Role.USER),
+    (
+        "olivia.brooks",
+        f"olivia.brooks@{SEED_EMAIL_DOMAIN}",
+        Department.TECHNOLOGY,
+        Role.USER,
+    ),
+    ("danielle.price", f"danielle.price@{SEED_EMAIL_DOMAIN}", Department.CP, Role.USER),
+    ("ryan.cooper", f"ryan.cooper@{SEED_EMAIL_DOMAIN}", Department.STS, Role.USER),
+    (
+        "keiko.tanaka",
+        f"keiko.tanaka@{SEED_EMAIL_DOMAIN}",
+        Department.TECHNOLOGY,
+        Role.USER,
+    ),
+    (
+        "amelia.jones",
+        f"amelia.jones@{SEED_EMAIL_DOMAIN}",
+        Department.FINANCE,
+        Role.USER,
+    ),
+    ("liam.oconnor", f"liam.oconnor@{SEED_EMAIL_DOMAIN}", Department.LEGAL, Role.USER),
+]
+
+
+def insert_demo_users_if_missing() -> bool:
+    """Insert demo standard users if absent (uses SEED_USER_PASSWORD). Returns True if inserted."""
+    if db.session.scalar(select(User.id).filter_by(username="sarah.mitchell")):
+        return False
+    pw_hash = hash_password(SEED_USER_PASSWORD)
+    users = [
+        User(
+            username=username,
+            email=email,
+            password_hash=pw_hash,
+            role=role,
+            department=dept,
+        )
+        for username, email, dept, role in DEMO_SEED_USER_SPECS
+    ]
+    db.session.add_all(users)
+    db.session.flush()
+    return True
+
 
 def ensure_demo_assets() -> None:
     """
     Insert realistic sample users, assets, assignments, and audit history for local UI testing.
     """
-    existing_seed_assets = db.session.scalar(
-        select(Asset).filter_by(serial_number=SEED_SERIAL_MARKER),
-    )
-    if existing_seed_assets:
-        admin_existing = db.session.scalar(
-            select(User).filter_by(username=LOCALDEV_USERNAME)
-        )
-        if admin_existing is not None:
-            seed_overdue_and_requests(admin=admin_existing, today=date.today())
-            db.session.commit()
-        return
-
     admin = db.session.scalar(select(User).filter_by(username=LOCALDEV_USERNAME))
     if admin is None:
+        return
+
+    existing_marker = db.session.scalar(
+        select(Asset).filter_by(serial_number=SEED_SERIAL_MARKER),
+    )
+    sarah_exists = (
+        db.session.scalar(select(User.id).filter_by(username="sarah.mitchell"))
+        is not None
+    )
+
+    if existing_marker:
+        seed_overdue_and_requests(admin=admin, today=date.today())
+        db.session.commit()
+        if sarah_exists:
+            return
+        insert_demo_users_if_missing()
+        db.session.commit()
         return
 
     actor_id = admin.id
     pw_hash = hash_password(SEED_USER_PASSWORD)
     today = date.today()
-
-    seed_users_spec: list[tuple[str, str, Department, Role]] = [
-        (
-            "sarah.mitchell",
-            f"sarah.mitchell@{SEED_EMAIL_DOMAIN}",
-            Department.FINANCE,
-            Role.USER,
-        ),
-        (
-            "david.nguyen",
-            f"david.nguyen@{SEED_EMAIL_DOMAIN}",
-            Department.STS,
-            Role.USER,
-        ),
-        (
-            "emily.carter",
-            f"emily.carter@{SEED_EMAIL_DOMAIN}",
-            Department.TECHNOLOGY,
-            Role.USER,
-        ),
-        (
-            "james.okonkwo",
-            f"james.okonkwo@{SEED_EMAIL_DOMAIN}",
-            Department.FINANCE,
-            Role.USER,
-        ),
-        (
-            "priya.sharma",
-            f"priya.sharma@{SEED_EMAIL_DOMAIN}",
-            Department.LEGAL,
-            Role.USER,
-        ),
-        ("marcus.weber", f"marcus.weber@{SEED_EMAIL_DOMAIN}", Department.HR, Role.USER),
-        (
-            "olivia.brooks",
-            f"olivia.brooks@{SEED_EMAIL_DOMAIN}",
-            Department.TECHNOLOGY,
-            Role.USER,
-        ),
-        (
-            "danielle.price",
-            f"danielle.price@{SEED_EMAIL_DOMAIN}",
-            Department.CP,
-            Role.USER,
-        ),
-        ("ryan.cooper", f"ryan.cooper@{SEED_EMAIL_DOMAIN}", Department.STS, Role.USER),
-        (
-            "keiko.tanaka",
-            f"keiko.tanaka@{SEED_EMAIL_DOMAIN}",
-            Department.TECHNOLOGY,
-            Role.USER,
-        ),
-        (
-            "amelia.jones",
-            f"amelia.jones@{SEED_EMAIL_DOMAIN}",
-            Department.FINANCE,
-            Role.USER,
-        ),
-        (
-            "liam.oconnor",
-            f"liam.oconnor@{SEED_EMAIL_DOMAIN}",
-            Department.LEGAL,
-            Role.USER,
-        ),
-    ]
 
     users: list[User] = [
         User(
@@ -114,7 +119,7 @@ def ensure_demo_assets() -> None:
             role=role,
             department=dept,
         )
-        for username, email, dept, role in seed_users_spec
+        for username, email, dept, role in DEMO_SEED_USER_SPECS
     ]
     db.session.add_all(users)
     db.session.flush()
@@ -139,7 +144,6 @@ def ensure_demo_assets() -> None:
             status=Status.ASSIGNED,
             purchase_date=date(2024, 3, 12),
             expiry_date=None,
-            notes="Corporate finance pool â€” primary analyst build.",
         ),
         Asset(
             name="Lenovo ThinkPad P1 Gen 6 (RTX 4070)",
@@ -148,7 +152,6 @@ def ensure_demo_assets() -> None:
             status=Status.ASSIGNED,
             purchase_date=date(2024, 8, 2),
             expiry_date=None,
-            notes="Heavy workstation for modelling and data science.",
         ),
         Asset(
             name='Dell UltraSharp U3223QE (32" 4K)',
@@ -157,7 +160,7 @@ def ensure_demo_assets() -> None:
             status=Status.ASSIGNED,
             purchase_date=date(2023, 11, 5),
             expiry_date=None,
-            notes="STS trading floor â€” desk cluster T-14.",
+            notes="Intended for STS trading floor",
         ),
         Asset(
             name='Dell Pro 27" P2723DE',
@@ -166,7 +169,7 @@ def ensure_demo_assets() -> None:
             status=Status.ASSIGNED,
             purchase_date=date(2024, 1, 18),
             expiry_date=None,
-            notes="STS operations â€” second screen for shift lead.",
+            notes="Technology operations.",
         ),
         Asset(
             name="Logitech MX Keys S (Graphite)",
@@ -175,10 +178,9 @@ def ensure_demo_assets() -> None:
             status=Status.ASSIGNED,
             purchase_date=date(2024, 5, 9),
             expiry_date=None,
-            notes="Technology hot-dock â€” paired with TB4 dock 7.",
         ),
         Asset(
-            name='Apple MacBook Air 13" (M2, returned)',
+            name='Apple MacBook Air 13" (M2)',
             asset_type=AssetType.LAPTOP,
             serial_number="APL-FVFK71Q9Q05D",
             status=Status.RETURNED,
@@ -193,7 +195,7 @@ def ensure_demo_assets() -> None:
             status=Status.AVAILABLE,
             purchase_date=date(2024, 9, 1),
             expiry_date=None,
-            notes="Spare pool â€” Legal / exec loaner.",
+            notes="Type A charger included.",
         ),
         Asset(
             name='Dell UltraSharp U2424H (24")',
@@ -202,16 +204,15 @@ def ensure_demo_assets() -> None:
             status=Status.AVAILABLE,
             purchase_date=date(2024, 4, 22),
             expiry_date=None,
-            notes="Unboxed spare â€” Customer & Products marketing.",
         ),
         Asset(
-            name="Logitech MX Master 3S (Pale Grey)",
+            name="Logitech MX Master 3S",
             asset_type=AssetType.MOUSE,
             serial_number="LOG-MXM3S-11K882",
             status=Status.AVAILABLE,
             purchase_date=date(2024, 3, 14),
             expiry_date=None,
-            notes="Spares cupboard â€” Technology.",
+            notes="Pale grey colour.",
         ),
         Asset(
             name="Logitech MX Anywhere 3S",
@@ -220,25 +221,24 @@ def ensure_demo_assets() -> None:
             status=Status.AVAILABLE,
             purchase_date=date(2024, 7, 30),
             expiry_date=None,
-            notes="Travel kit stock â€” Finance.",
+            notes="Travel kit stock.",
         ),
         Asset(
-            name="Jabra Evolve2 75 UC (Stereo)",
+            name="Jabra Evolve2 75 UC",
             asset_type=AssetType.HEADPHONES,
             serial_number="JBR-EV275-QP93L2",
             status=Status.AVAILABLE,
             purchase_date=date(2023, 10, 2),
             expiry_date=None,
-            notes="Returned from contractor â€” inspected, ready to reissue.",
         ),
         Asset(
-            name="Poly Studio P15 (Personal video bar)",
+            name="Poly Studio P15",
             asset_type=AssetType.WEBCAM,
             serial_number="POL-P15-UK90M1",
             status=Status.AVAILABLE,
             purchase_date=date(2024, 2, 27),
             expiry_date=None,
-            notes="Legal videoconference kit â€” unassigned.",
+            notes="Intended for Legal meeting room B.",
         ),
         Asset(
             name="Elgato Facecam Pro",
@@ -247,7 +247,7 @@ def ensure_demo_assets() -> None:
             status=Status.AVAILABLE,
             purchase_date=date(2024, 6, 11),
             expiry_date=None,
-            notes="Streaming / comms trial stock.",
+            notes="Streaming and comms trial stock.",
         ),
         Asset(
             name="Shure MV7 USB/XLR (Black)",
@@ -256,7 +256,6 @@ def ensure_demo_assets() -> None:
             status=Status.UNDER_MAINTENANCE,
             purchase_date=date(2022, 12, 4),
             expiry_date=None,
-            notes="USB-C intermittent â€” with vendor RMA.",
         ),
         Asset(
             name="Microsoft 365 E5 (per-user subscription)",
@@ -265,7 +264,7 @@ def ensure_demo_assets() -> None:
             status=Status.AVAILABLE,
             purchase_date=date(2024, 1, 1),
             expiry_date=date(today.year + 1, 12, 31),
-            notes="Unassigned seat â€” provision during onboarding.",
+            notes="Provision during onboarding.",
         ),
         Asset(
             name="Adobe Creative Cloud (named user, annual)",
@@ -274,7 +273,7 @@ def ensure_demo_assets() -> None:
             status=Status.AVAILABLE,
             purchase_date=date(2025, 1, 15),
             expiry_date=date(today.year, 12, 31),
-            notes="Marketing shared licence â€” not yet assigned.",
+            notes="Marketing shared licence.",
         ),
         Asset(
             name='Dell Pro 24" P2422H (EOL)',
@@ -283,7 +282,7 @@ def ensure_demo_assets() -> None:
             status=Status.RETIRED,
             purchase_date=date(2018, 5, 4),
             expiry_date=None,
-            notes="Retired â€” kept for parts only.",
+            notes="Retired, kept for parts only.",
         ),
         Asset(
             name="Keychron Q6 Pro (100%, tactile)",
@@ -292,7 +291,6 @@ def ensure_demo_assets() -> None:
             status=Status.AVAILABLE,
             purchase_date=date(2024, 10, 8),
             expiry_date=None,
-            notes="HR ergonomics trial â€” surplus after pilot.",
         ),
     ]
 

@@ -2,6 +2,10 @@
 
 A Flask web app for tracking hardware and software assets, assignments, and user-driven asset requests. Admins manage assets, users, and approvals; standard users see their assigned assets, submit requests, and record returns.
 
+**Access here:**
+
+https://asset-management-system-h83y.onrender.com
+
 ---
 
 ## Contents
@@ -116,7 +120,8 @@ Open http://127.0.0.1:10000/ — first launch creates `instance/app.db` and runs
 When `TESTING` is NOT true:
 
 - `ensure_localdev_admin()` — Ensures user `localdev` exists with email `localdev@gmail.com`, role Admin, password from `LOCALDEV_ADMIN_PASSWORD` or a documented default.
-- `ensure_demo_assets()` — Seeds sample users, assets, assignments, and requests if the catalog marker is absent (orchestrated from the `app/seed/` package).
+- `ensure_demo_assets()` — Seeds sample users, assets, assignments, and requests if the catalog marker is absent. If the marker asset exists but demo users are missing (partial deploy), the next startup inserts those users only.
+- **`SEED_USER_PASSWORD`** (optional env) — Sets the password for all seeded **standard** users (default **`SeedDemo1!`**). If you set it in production (e.g. Render), you must log in with that value, not the default.
 
 ---
 
