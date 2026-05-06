@@ -1,3 +1,11 @@
+"""WSGI entrypoint for production deployment."""
+
+import os
+
+from dotenv import load_dotenv
+
 from app import create_app
 
-app = create_app()
+load_dotenv()
+
+app = create_app(os.environ.get("FLASK_CONFIG", "production"))

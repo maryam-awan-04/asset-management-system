@@ -5,9 +5,15 @@ from typing import Optional
 
 from flask import Flask
 
-from app.config import get_config
+from app.config import ProductionConfig, get_config, validate_production_config
 from app.extensions import csrf, db, limiter, login_manager
 from app.forms.empty import EmptyForm
+
+
+def _normalize_database_url(uri: str) -> str:
+    if uri.startswith("postgres://"):
+        return uri.replace("postgres://", "postgresql://", 1)
+    return uri
 
 
 def create_app(config_name: Optional[str] = None) -> Flask:
@@ -16,10 +22,21 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     config_class = get_config(config_name)
     app.config.from_object(config_class)
 
+    if config_class is ProductionConfig:
+        validate_production_config(app.config.get("SECRET_KEY"))
+
     os.makedirs(app.instance_path, exist_ok=True)
     if not app.config.get("TESTING"):
-        db_path = os.path.join(app.instance_path, "app.db")
-        app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
+        explicit_uri = os.environ.get("SQLALCHEMY_DATABASE_URI") or os.environ.get(
+            "DATABASE_URL",
+        )
+        if explicit_uri:
+            app.config["SQLALCHEMY_DATABASE_URI"] = _normalize_database_url(
+                explicit_uri.strip(),
+            )
+        else:
+            db_path = os.path.join(app.instance_path, "app.db")
+            app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
 
     db.init_app(app)
     login_manager.init_app(app)

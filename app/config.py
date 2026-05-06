@@ -6,7 +6,7 @@ from typing import Optional, Type
 
 
 class Config:
-    SECRET_KEY = os.environ.get("SECRET_KEY", "dev-change-me")
+    SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     WTF_CSRF_ENABLED = True
     REMEMBER_COOKIE_HTTPONLY = True
@@ -24,6 +24,7 @@ class ProductionConfig(Config):
     DEBUG = False
     SESSION_COOKIE_SECURE = True
     REMEMBER_COOKIE_SECURE = True
+    WTF_CSRF_ENABLED = True
 
 
 class TestingConfig(Config):
@@ -42,3 +43,8 @@ def get_config(name: Optional[str]) -> Type[Config]:
     }
     key = (name or os.environ.get("FLASK_CONFIG") or "development").lower()
     return mapping.get(key, DevelopmentConfig)
+
+
+def validate_production_config(secret_key: str | None) -> None:
+    if not secret_key or secret_key == "dev-secret-key":
+        raise RuntimeError("Production configuration is missing a secret key.")

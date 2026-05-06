@@ -65,9 +65,10 @@ Environment variables
 
 | Variable | Purpose |
 |:---------|:--------|
-| `SECRET_KEY` | Session signing. Set in production; defaults to a dev placeholder. |
-| `FLASK_CONFIG` | `development` (default), `production`, or `testing` (used by pytest only). |
-| `LOCALDEV_ADMIN_PASSWORD` | Password for seeded user `localdev` (default in code if unset). |
+| `SECRET_KEY` | Session signing and CSRF. Required when `FLASK_CONFIG=production`. |
+| `FLASK_CONFIG` | `development` (default for `run.py`), `production`, or `testing` (pytest only). |
+| `DATABASE_URL` or `SQLALCHEMY_DATABASE_URI` | Optional database URL. If unset, SQLite is used at `instance/app.db`. |
+| `LOCALDEV_ADMIN_PASSWORD` | Password for seeded user `localdev` (development only). |
 
 Optional `.env` in the project root:
 
@@ -77,7 +78,31 @@ FLASK_CONFIG=development
 LOCALDEV_ADMIN_PASSWORD=YourSecurePassword1!
 ```
 
-`run.py` loads `.env` via `python-dotenv`.
+`run.py` and `wsgi.py` load `.env` via `python-dotenv` when present.
+
+Production behaviour:
+
+- **Secure cookies:** `SESSION_COOKIE_SECURE` and `REMEMBER_COOKIE_SECURE` are True in production so cookies are only sent over HTTPS.
+- **SECRET_KEY:** startup fails if production is selected but `SECRET_KEY` is missing or still `dev-secret-key`.
+
+### Docker
+
+The image runs Gunicorn on port 10000 inside the container. The WSGI target is `wsgi:app` (see `wsgi.py`), which loads `.env` when present and calls `create_app()` with `FLASK_CONFIG` from the environment (the Dockerfile sets `FLASK_CONFIG=production`).
+
+```bash
+docker build -t asset-management .
+```
+
+Run — map host port 10000** to the container, set `SECRET_KEY`, and mount `/app/instance` so the SQLite file survives container restarts:
+
+```bash
+docker run --rm -p 10000:10000 \
+  -e SECRET_KEY="replace-secret-value" \
+  -v asset-mgmt-instance:/app/instance \
+  asset-management
+```
+
+Open http://127.0.0.1:8000/ — first launch creates `instance/app.db`.
 
 ---
 
