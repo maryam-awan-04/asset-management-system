@@ -80,7 +80,7 @@ def create_app(config_name: Optional[str] = None) -> Flask:
 
     with app.app_context():
         db.create_all()
-        if app.config.get("DEBUG"):
+        if not app.config.get("TESTING"):
             from app.seed import ensure_demo_assets, ensure_localdev_admin
 
             ensure_localdev_admin()

@@ -1,7 +1,8 @@
 """
-Development seeding orchestration.
+Demo seeding orchestration.
 
-Invokes `ensure_localdev_admin` and `ensure_demo_assets` from the app factory when DEBUG is enabled.
+Invoked from the app factory for non-testing configs so demo deployments (including production)
+get the `localdev` admin and sample data.
 """
 
 from __future__ import annotations

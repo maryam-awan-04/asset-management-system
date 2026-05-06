@@ -102,7 +102,7 @@ docker run --rm -p 10000:10000 \
   asset-management
 ```
 
-Open http://127.0.0.1:8000/ — first launch creates `instance/app.db`.
+Open http://127.0.0.1:10000/ — first launch creates `instance/app.db` and runs demo seeding.
 
 ---
 
@@ -113,7 +113,7 @@ Open http://127.0.0.1:8000/ — first launch creates `instance/app.db`.
 
 ### Demo data and local admin account
 
-When `DEBUG` is true (`FLASK_CONFIG=development`):
+When `TESTING` is NOT true:
 
 - `ensure_localdev_admin()` — Ensures user `localdev` exists with email `localdev@gmail.com`, role Admin, password from `LOCALDEV_ADMIN_PASSWORD` or a documented default.
 - `ensure_demo_assets()` — Seeds sample users, assets, assignments, and requests if the catalog marker is absent (orchestrated from the `app/seed/` package).
